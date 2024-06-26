@@ -32,6 +32,7 @@ To get started with this project, follow these steps:
 - [ ] In-game tutorial
 - [ ] Ability to export data to CSV and analyze game data for AI model prediction.
 - [ ] In-game AI model prediction
+- [ ] Save game progress using database / browser storage.
 
 ## Technologies Used
 
