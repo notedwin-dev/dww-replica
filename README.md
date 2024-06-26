@@ -1,6 +1,8 @@
 # 大胃王 (replica)
 
-This is a replica of the "大胃王" game, implemented using HTML, CSS, and JavaScript.
+## Introduction
+
+大胃王 is one of the most common betting game that can be found in popular Voice Live Streaming platforms such as [MOMI](https://www.momitw.com/#/) and [Dino](https://dinoapp.chat/). Usually it requires the user to topup into the platform before they can start playing. In some platforms, the earnings from the game will not only double your virtual currency for gifting their favorite streamers, it will also enable them to withdraw their earnings into their bank account. This is the replica of the "大胃王" game from the voice live streaming platform known as [Dino](https://dinoapp.chat/), implemented using HTML, CSS, and JavaScript.
 
 ## Getting Started
 
