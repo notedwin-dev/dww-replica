@@ -14,19 +14,29 @@ let bets = {
 };
 
 const animals = [
-  { name: "turtle", displayName: "乌龟", prob: 19.4, return: 5 },
-  { name: "hedgehog", displayName: "刺猬", prob: 19.4, return: 5 },
-  { name: "raccoon", displayName: "浣熊", prob: 19.4, return: 5 },
-  { name: "elephant", displayName: "小象", prob: 19.4, return: 5 },
-  { name: "cat", displayName: "猫咪", prob: 9.7, return: 10 },
-  { name: "fox", displayName: "狐狸", prob: 6.5, return: 15 },
-  { name: "pig", displayName: "猪猪", prob: 3.9, return: 25 },
-  { name: "lion", displayName: "狮子", prob: 2.2, return: 45 },
+  { name: "turtle", displayName: "🐢乌龟", prob: 19.4, return: 5 },
+  { name: "hedgehog", displayName: "🦔刺猬", prob: 19.4, return: 5 },
+  { name: "raccoon", displayName: "🦝浣熊", prob: 19.4, return: 5 },
+  { name: "elephant", displayName: "🐘小象", prob: 19.4, return: 5 },
+  { name: "cat", displayName: "😼猫咪", prob: 9.7, return: 10 },
+  { name: "fox", displayName: "🦊狐狸", prob: 6.5, return: 15 },
+  { name: "pig", displayName: "🐖猪猪", prob: 3.9, return: 25 },
+  { name: "lion", displayName: "🦁狮子", prob: 2.2, return: 45 },
 ];
 
 const specials = [
-  { name: "vegetarian_festival", prob: 0.05, return: 20 }, // Sum of turtle, hedgehog, raccoon, elephant returns
-  { name: "carnivorous_festival", prob: 0.05, return: 95 }, // Sum of cat, fox, pig, lion returns
+  {
+    name: "vegetarian_festival",
+    displayName: "🐢🦔🦝🐘",
+    prob: 0.05,
+    return: 20,
+  }, // Sum of turtle, hedgehog, raccoon, elephant returns
+  {
+    name: "carnivorous_festival",
+    displayName: "😼🦊🐖🦁",
+    prob: 0.05,
+    return: 95,
+  }, // Sum of cat, fox, pig, lion returns
 ];
 
 function selectBetAmount(amount) {
@@ -55,10 +65,18 @@ function selectAnimal(animal) {
   document.getElementById("coins").textContent = coins -= selectedBetAmount;
 }
 
+// Define a delay function that returns a promise that resolves after a specified time
+function delay(time) {
+  return new Promise((resolve) => setTimeout(resolve, time));
+}
+
 // Implement a self resetting countdown timer that resets itself after each round of games.
 let countdown = 30;
 
-function startCountdown() {
+async function startCountdown() {
+  // Reset result text
+  document.getElementById("result").textContent = "Next round is starting...";
+
   const countdownElement = document.getElementById("countdown");
   countdownElement.textContent = countdown;
   countdown--;
@@ -66,30 +84,31 @@ function startCountdown() {
   if (countdown < 0) {
     // Change this line
     countdownElement.textContent = "0";
-    new Promise((resolve) => {
-      document.getElementById("result").textContent = "Loading results...";
 
-      //disable all the buttons
+    document.getElementById("result").textContent = "Loading results...";
 
-      document.querySelectorAll("button").forEach((button) => {
-        if (button.id !== "view-records" && button.id !== "close-button")
-          button.disabled = true;
-      });
+    //disable all the buttons
 
-      setTimeout(resolve, 2000);
-    })
-      .then(() => {
-        playGame();
+    document.querySelectorAll("button").forEach((button) => {
+      if (button.id !== "view-records" && button.id !== "close-button")
+        button.disabled = true;
+    });
 
-        //enable all the buttons
-        document.querySelectorAll("button").forEach((button) => {
-          button.disabled = false;
-        });
-      })
-      .finally(() => {
-        countdown = 30; // Reset countdown
-        startCountdown(); // Restart the countdown after resetting
-      });
+    await delay(2000);
+
+    playGame();
+
+    //enable all the buttons
+    document.querySelectorAll("button").forEach((button) => {
+      button.disabled = false;
+    });
+
+    await delay(5000);
+
+    countdown = 30; // Reset countdown
+
+    await startCountdown(); // Restart the countdown after resetting
+
     return; // Prevent further execution in this cycle
   }
 
