@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>大胃王 (replica)</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+
+<body>
+    <div class="container">
+        <h1>大胃王 (replica)</h1>
+
+        <div class="countdown">
+            <p>Time Left: <span id="countdown"></span> seconds</p>
+        </div>
+
+        <div class="coins">Coins: <span id="coins">10000</span></div>
+        <div class="bet-options">
+            <button id="bet-50" onclick="selectBetAmount(50)">50 Coins</button>
+            <button id="bet-500" onclick="selectBetAmount(500)">500 Coins</button>
+            <button id="bet-5000" onclick="selectBetAmount(5000)">5000 Coins</button>
+        </div>
+        <div class="animals">
+            <div class="row">
+                <button onclick="selectAnimal('turtle')">乌龟</button>
+                <p class="bet-info" id="bet-turtle"></p>
+                <button onclick="selectAnimal('hedgehog')">刺猬</button>
+                <p class="bet-info" id="bet-hedgehog"></p>
+                <button onclick="selectAnimal('raccoon')">浣熊</button>
+                <p class="bet-info" id="bet-raccoon"></p>
+                <button onclick="selectAnimal('elephant')">小象</button>
+                <p class="bet-info" id="bet-elephant"></p>
+            </div>
+            <div class="row">
+                <button onclick="selectAnimal('cat')">猫咪 </button>
+                <p class="bet-info" id="bet-cat"></p>
+                <button onclick="selectAnimal('fox')">狐狸 </button>
+                <p class="bet-info" id="bet-fox"></p>
+                <button onclick="selectAnimal('pig')">猪猪 </button>
+                <p class="bet-info" id="bet-pig"></p>
+                <button onclick="selectAnimal('lion')">狮子</button>
+                <p class="bet-info" id="bet-lion"></p>
+            </div>
+        </div>
+        <div class="bet-info" id="bet-info"></div>
+        <div class="actions">
+            <button id="view-records" onclick="toggleFoldResults()">View Records</button>
+        </div>
+        <div class="result" id="result"></div>
+        <div class="past-results" id="past-results">
+            <h2>Past Results</h2>
+            <ul id="past-results-list">
+            </ul>
+        </div>
+    </div>
+
+    <!-- A popup modal for the game result -->
+    <div id="popup-modal">
+        <table class="popup-content" id="history-table" style="display: none;">
+            <thead>
+                <tr>
+                    <th>Animal</th>
+                    <th>Total bets</th>
+                    <th>Winnings</th>
+                    <th>Result At</th>
+                </tr>
+            </thead>
+            <tbody id="folded-result-tbody">
+                <tr id="past-results-trow">
+                </tr>
+            </tbody>
+        </table>
+        <button id="close-button" class="popup-modal-close-button" style="display: none;">X Close</button>
+    </div>
+    <script src="script.js"></script>
+</body>
+
+</html>

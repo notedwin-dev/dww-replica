@@ -1,0 +1,175 @@
+body {
+  font-family: Arial, sans-serif;
+  background-color: #f0f0f0;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100vh;
+  margin: 0;
+}
+
+.container {
+  text-align: center;
+  background: white;
+  padding: 20px;
+  border-radius: 10px;
+  box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+}
+
+.coins {
+  font-size: 1.5em;
+  margin-bottom: 20px;
+}
+
+#view-records {
+  background-color: rgb(121, 85, 155);
+  color: white;
+  border: none;
+
+  /* rounded corner */
+  border-radius: 5px;
+}
+
+.bet-options button,
+.animals button,
+.actions button {
+  margin: 10px;
+  padding: 10px 20px;
+  font-size: 1em;
+  cursor: pointer;
+}
+
+.bet-options button {
+  background-color: #ffd722;
+  color: black;
+  border: none;
+  border-radius: 5px;
+
+  /* soft dropshadow */
+  box-shadow: 0 0 5px rgba(0, 0, 0, 0.25);
+}
+
+.animals button {
+  background-color: #007bff;
+  color: white;
+  border: none;
+  border-radius: 5px;
+}
+
+.animals button:hover {
+  background-color: #0056b3;
+
+  /* Smooth transition between hover */
+  transition: background-color 0.3s;
+}
+
+.bet-options button:hover {
+  background-color: #d8b949;
+
+  /* Smooth transition between hover */
+  transition: background-color 0.3s;
+}
+
+.bet-options button.selected {
+  background-color: rgb(110, 110, 110);
+  color: white;
+}
+
+.row {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 10px;
+}
+
+.animal {
+  margin: 0 10px;
+}
+
+.bet-info {
+  font-size: 1.2em;
+  color: green;
+}
+
+.result {
+  font-size: 1.5em;
+  margin-top: 20px;
+}
+
+.past-results ul {
+  list-style: none;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.past-results li {
+  margin: 5px;
+  padding: 5px 10px;
+  background: #e0e0e0;
+  border-radius: 5px;
+}
+
+.folded-results-list {
+  display: none;
+}
+
+.popup-modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 9999;
+}
+
+.popup-content {
+  background: white;
+  padding: 20px;
+  border-radius: 10px;
+  box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+}
+
+.popup-modal-close-button {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  cursor: pointer;
+}
+
+.popup-modal table {
+  width: 50vh; /* Full width of the container */
+  height: auto; /* Height adjusts to content with a maximum limit */
+  max-height: 700px; /* Maximum height with scrolling */
+  overflow-x: scroll; /* Enables horizontal scrolling */
+  border-collapse: collapse; /* Collapses table borders */
+  background-color: #f8f9fa; /* Light background color */
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1); /* Subtle shadow for depth */
+  border-radius: 8px; /* Rounded corners */
+  font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif; /* Modern font */
+}
+
+.popup-content th,
+.popup-content td {
+  text-align: left; /* Aligns text to the left */
+  padding: 12px 15px; /* Padding inside cells */
+  border-bottom: 1px solid #dee2e6; /* Light border for separation */
+}
+
+.popup-content th {
+  background-color: #007bff; /* Blue background for headers */
+  color: white; /* White text for contrast */
+  font-weight: normal; /* Normal font weight */
+}
+
+.popup-content tr:hover {
+  background-color: #f1f3f5; /* Light grey background on row hover */
+}
+
+.popup-content tr:nth-child(even) {
+  background-color: #e9ecef; /* Zebra striping for rows */
+}
