@@ -30,6 +30,28 @@ body {
   border-radius: 5px;
 }
 
+/* When buttons are disabled, set their background color to darker color */
+.bet-options button:disabled,
+.animals button:disabled {
+  background-color: #ccc;
+
+  color: #666;
+
+  transition: background-color 0.5s;
+  transition: color 0.5s;
+
+  /* Disable pointer events */
+  pointer-events: none;
+}
+
+/* When disabled state is removed, ease out of the current background color */
+
+.bet-options button:enabled,
+.animals button:enabled {
+  transition: color 1s;
+  transition: background-color 1s;
+}
+
 .bet-options button,
 .animals button,
 .actions button {
@@ -139,6 +161,11 @@ body {
   top: 10px;
   right: 10px;
   cursor: pointer;
+  background-color: #ff4d4d;
+  color: white;
+  border: none;
+  border-radius: 5px;
+  padding: 5px 10px;
 }
 
 .popup-modal table {
@@ -164,6 +191,9 @@ body {
   background-color: #007bff; /* Blue background for headers */
   color: white; /* White text for contrast */
   font-weight: normal; /* Normal font weight */
+
+  /* Fixed width for table heading */
+  width: 100px;
 }
 
 .popup-content tr:hover {

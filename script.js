@@ -78,7 +78,7 @@ function startCountdown() {
           button.disabled = true;
       });
 
-      setTimeout(resolve, 1000);
+      setTimeout(resolve, 2000);
     })
       .then(() => {
         playGame();
