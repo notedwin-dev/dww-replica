@@ -58,7 +58,7 @@ function selectAnimal(animal) {
 }
 
 // Implement a self resetting countdown timer that resets itself after each round of games.
-let countdown = 10;
+let countdown = 30;
 
 function startCountdown() {
   const countdownElement = document.getElementById("countdown");
