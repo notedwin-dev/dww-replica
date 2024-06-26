@@ -212,7 +212,7 @@ function playGame() {
   // Reset bets
   for (let animal in bets) {
     bets[animal] = 0;
-    document.getElementById(`bet-${animal}`).textContent = "";
+    document.getElementById(`bet-${animal}`).textContent = "0";
   }
 
   selectedBetAmount = 0;
