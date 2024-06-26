@@ -50,9 +50,7 @@ function selectAnimal(animal) {
   }
 
   bets[animal] += selectedBetAmount;
-  document.getElementById(
-    `bet-${animal}`
-  ).textContent = `${bets[animal]} coins`;
+  document.getElementById(`bet-${animal}`).textContent = `${bets[animal]}`;
 
   document.getElementById("coins").textContent = coins -= selectedBetAmount;
 }
