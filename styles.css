@@ -55,7 +55,6 @@ body {
 .bet-options button,
 .animals button,
 .actions button {
-  margin: 10px;
   padding: 10px 20px;
   font-size: 1em;
   cursor: pointer;
@@ -69,6 +68,9 @@ body {
 
   /* soft dropshadow */
   box-shadow: 0 0 5px rgba(0, 0, 0, 0.25);
+
+  /* grid layout */
+  margin: 0 10px 30px 0;
 }
 
 .animals button {
@@ -76,6 +78,9 @@ body {
   color: white;
   border: none;
   border-radius: 5px;
+  margin: 0 20px;
+
+  margin-top: 20px;
 }
 
 .animals button:hover {
@@ -100,16 +105,31 @@ body {
 .row {
   display: flex;
   justify-content: center;
-  margin-bottom: 10px;
 }
 
 .animal {
   margin: 0 10px;
 }
 
+.column {
+  display: flex; /* Enables flexbox properties within the column */
+  flex-direction: column; /* Stacks the button and paragraph vertically */
+  padding: 0;
+
+  background-color: #f8f9fa; /* Light grey background color */
+
+  border: 1px solid #dee2e6; /* Light border color */
+
+  align-items: center; /* Aligns items in the center */
+
+  /* center the button */
+  justify-content: center;
+}
+
 .bet-info {
-  font-size: 1.2em;
+  font-size: 1em;
   color: green;
+  margin-top: 10px;
 }
 
 .result {
