@@ -978,9 +978,8 @@ const fetchUserData = async () => {
     const data = await response.json();
 
     if (response.ok) {
-      user = data.user;
-      coins = user.coins;
-      localStorage.setItem("user", JSON.stringify(user));
+      coins = data.coins;
+      localStorage.setItem("user", JSON.stringify(data));
       updateCoinsDisplay();
     } else {
       console.error("Failed to fetch user data:", data.error);
