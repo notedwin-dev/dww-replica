@@ -36,12 +36,18 @@ router.post("/register", async (req, res) => {
     }
 
     // Register user with Supabase auth
-    const { user, error: authError } = await supabase.auth.signUp({
+    const {
+      data: { user },
+      error: authError,
+    } = await supabase.auth.signUp({
       email,
       password,
+      options: {
+        data: {
+          username,
+        },
+      },
     });
-
-    console.log("Supabase signUp response:", { user, authError }); // Log response for debugging
 
     if (authError) throw authError;
 
@@ -51,7 +57,7 @@ router.post("/register", async (req, res) => {
     }
 
     // Create user profile in our custom users table
-    const { data, error } = await supabase.from("users").insert({
+    const { insertError } = await supabase.from("users").insert({
       id: user.id,
       email,
       username,
@@ -59,7 +65,8 @@ router.post("/register", async (req, res) => {
       created_at: new Date(),
     });
 
-    if (error) throw error;
+    if (insertError)
+      throw insertError?.message || "Failed to create user profile";
 
     // Create JWT token
     const token = jwt.sign({ id: user.id }, process.env.JWT_SECRET);
