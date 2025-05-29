@@ -1119,6 +1119,7 @@ const logoutAnonymousUser = async () => {
   // Remove session data but keep the guest ID reference
   localStorage.removeItem("anonymousUser");
   localStorage.removeItem("supabaseSession");
+  localStorage.removeItem("guestId");
   localStorage.removeItem("guestBets");
   localStorage.removeItem("guestCoins");
 
