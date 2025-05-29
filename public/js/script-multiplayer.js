@@ -55,6 +55,9 @@ const initializeGame = async () => {
   loadAuthState();
   await fetchGameState();
 
+  // Load synchronized past results for all players
+  fetchPastResultsList();
+
   // Only subscribe to realtime if we have a Supabase client
   if (supabase) {
     subscribeToRealtime();
@@ -400,24 +403,50 @@ const displayResult = (result) => {
 
 // Add result to history display
 const addResultToHistory = (result) => {
-  // Update past results list
-  const pastResultsList = document.getElementById("past-results-list");
-  const li = document.createElement("li");
-  li.textContent = result.displayName;
-  pastResultsList.prepend(li);
-
-  // Limit the number of displayed results to 8
-  while (pastResultsList.children.length > 8) {
-    pastResultsList.removeChild(pastResultsList.lastChild);
-  }
-
-  // Update history table if visible
+  // Don't add to past results list here - it will be synced from server
+  // Just update the history table if it's currently visible
   const tableVisible =
     document.getElementById("history-table").style.display !== "none";
   if (tableVisible) {
     updateHistoryTable(result);
   }
+
+  // Refresh the past results list from server to ensure synchronization
+  fetchPastResultsList();
 };
+
+// Fetch and update the past results list (synchronized for all players)
+async function fetchPastResultsList() {
+  try {
+    const response = await fetch(`${API_URL}/game/history?limit=8`);
+    const data = await response.json();
+
+    if (response.ok) {
+      updatePastResultsList(data);
+    } else {
+      console.error("Error fetching past results:", data.error);
+    }
+  } catch (error) {
+    console.error("Error:", error);
+  }
+}
+
+// Update the past results list with synchronized data
+function updatePastResultsList(gameHistory) {
+  const pastResultsList = document.getElementById("past-results-list");
+
+  // Clear existing results
+  pastResultsList.innerHTML = "";
+
+  // Add each recent game result to the list
+  gameHistory.slice(0, 8).forEach((game) => {
+    if (game.result && game.status === "ended") {
+      const li = document.createElement("li");
+      li.textContent = game.result_display_name || game.result;
+      pastResultsList.appendChild(li);
+    }
+  });
+}
 
 // Update history table
 const updateHistoryTable = (result) => {
@@ -473,11 +502,57 @@ function toggleFoldResults() {
     popupModal.classList.add("popup-modal");
     historyTable.style.display = "block";
     closeButton.style.display = "block";
+
+    // Fetch and display synchronized game history
+    fetchGameHistory();
   } else {
     popupModal.classList.remove("popup-modal");
     historyTable.style.display = "none";
     closeButton.style.display = "none";
   }
+}
+
+// Fetch game history from the server (synchronized for all players)
+async function fetchGameHistory() {
+  try {
+    const response = await fetch(`${API_URL}/game/history?limit=10`);
+    const data = await response.json();
+
+    if (response.ok) {
+      updateGameHistoryTable(data);
+    } else {
+      console.error("Error fetching game history:", data.error);
+    }
+  } catch (error) {
+    console.error("Error:", error);
+  }
+}
+
+// Update the game history table with synchronized data
+function updateGameHistoryTable(gameHistory) {
+  const tableBody = document.getElementById("folded-result-tbody");
+
+  // Clear existing content except the header row
+  tableBody.innerHTML = '<tr id="past-results-trow"></tr>';
+
+  // Add each game result to the table
+  gameHistory.forEach((game) => {
+    if (game.result && game.status === "ended") {
+      const newRow = tableBody.insertRow(1); // Insert after header row
+
+      // Add cells to the row
+      const animalCell = newRow.insertCell(0);
+      const betsCell = newRow.insertCell(1);
+      const winningsCell = newRow.insertCell(2);
+      const timeCell = newRow.insertCell(3);
+
+      // Populate cells with game data
+      animalCell.textContent = game.result_display_name || game.result;
+      betsCell.textContent = "Global Game"; // Since we don't have individual bet data
+      winningsCell.textContent = `${game.result_return_rate}x`; // Show return rate
+      timeCell.textContent = new Date(game.created_at).toLocaleString();
+    }
+  });
 }
 
 // Authentication functions
