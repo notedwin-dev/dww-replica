@@ -39,6 +39,7 @@ const loadAuthState = () => {
   const savedUser = localStorage.getItem("user");
   const savedToken = localStorage.getItem("token");
   const anonymousUser = localStorage.getItem("anonymousUser");
+  const savedSupabaseSession = localStorage.getItem("supabaseSession");
 
   if (savedUser && savedToken) {
     user = JSON.parse(savedUser);
@@ -46,7 +47,34 @@ const loadAuthState = () => {
     updateUIForLoggedInUser(user);
   } else if (anonymousUser && anonymousUser === "true") {
     // Load anonymous user session
-    loginAnonymousUser();
+    if (savedSupabaseSession) {
+      console.log("Restoring saved anonymous session");
+      // If we have a saved Supabase session, manually set it before calling loginAnonymousUser
+      // This helps Supabase auth recognize the existing session
+      if (supabase) {
+        // Try to set the auth state with the saved session
+        supabase.auth
+          .setSession(JSON.parse(savedSupabaseSession))
+          .then(() => {
+            console.log("Successfully restored Supabase session");
+            isAnonymousUser = true;
+            updateNavbarForAnonymousUser();
+            loadGuestStats();
+          })
+          .catch(() => {
+            console.log("Failed to restore session, creating new one");
+            loginAnonymousUser();
+          });
+      } else {
+        // Initialize Supabase first and then login
+        initializeSupabaseClient().then(() => {
+          loginAnonymousUser();
+        });
+      }
+    } else {
+      // No saved session, create a new one
+      loginAnonymousUser();
+    }
   } else if (!document.getElementById("auth-container")) {
     // Do not automatically show login UI - use navbar buttons instead
     updateNavbarForGuest();
@@ -125,6 +153,18 @@ const initializeSupabaseClient = async () => {
         config.supabaseKey
       );
       console.log("Supabase client initialized successfully");
+
+      // Set up a listener for auth state changes to keep localStorage in sync
+      supabase.auth.onAuthStateChange((event, session) => {
+        if (event === "SIGNED_IN" || event === "TOKEN_REFRESHED") {
+          if (isAnonymousUser) {
+            localStorage.setItem("supabaseSession", JSON.stringify(session));
+            console.log("Updated anonymous session in localStorage");
+          }
+        } else if (event === "SIGNED_OUT") {
+          localStorage.removeItem("supabaseSession");
+        }
+      });
     } else {
       console.error("Incomplete Supabase configuration received");
     }
@@ -854,6 +894,9 @@ const loginAnonymousUser = async () => {
     if (session) {
       console.log("Restored anonymous session");
       isAnonymousUser = true;
+      // Store the session in localStorage to persist between page loads
+      localStorage.setItem("anonymousUser", "true");
+      localStorage.setItem("supabaseSession", JSON.stringify(session));
       updateNavbarForAnonymousUser();
       loadGuestStats();
     } else {
@@ -864,7 +907,9 @@ const loginAnonymousUser = async () => {
 
       console.log("Created new anonymous session");
       isAnonymousUser = true;
+      // Store the session in localStorage to persist between page loads
       localStorage.setItem("anonymousUser", "true");
+      localStorage.setItem("supabaseSession", JSON.stringify(data.session));
       updateNavbarForAnonymousUser();
       loadGuestStats();
     }
@@ -884,7 +929,10 @@ const logoutAnonymousUser = async () => {
   }
 
   isAnonymousUser = false;
+
+  // Remove all anonymous user data from localStorage
   localStorage.removeItem("anonymousUser");
+  localStorage.removeItem("supabaseSession");
   localStorage.removeItem("guestBets");
   localStorage.removeItem("guestCoins");
 
