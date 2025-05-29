@@ -839,13 +839,18 @@ async function fetchLeaderboard() {
     const response = await fetch(`${API_URL}/leaderboard`);
     const data = await response.json();
 
-    if (response.ok) {
+    if (response.ok && Array.isArray(data) && data.length > 0) {
       updateLeaderboardUI(data);
     } else {
-      console.error("Error fetching leaderboard:", data.error);
+      const leaderboardBody = document.getElementById("leaderboard-body");
+      leaderboardBody.innerHTML =
+        "<tr><td colspan='3'>No one placed any bets this round.</td></tr>";
     }
   } catch (error) {
-    console.error("Error:", error);
+    console.error("Error fetching leaderboard data:", error);
+    const leaderboardBody = document.getElementById("leaderboard-body");
+    leaderboardBody.innerHTML =
+      "<tr><td colspan='3'>No one placed any bets this round.</td></tr>";
   }
 }
 
@@ -853,6 +858,12 @@ async function fetchLeaderboard() {
 function updateLeaderboardUI(leaderboardData) {
   const leaderboardBody = document.getElementById("leaderboard-body");
   leaderboardBody.innerHTML = "";
+
+  if (leaderboardData.length === 0) {
+    leaderboardBody.innerHTML =
+      "<tr><td colspan='3'>No one placed any bets this round.</td></tr>";
+    return;
+  }
 
   leaderboardData.forEach((player, index) => {
     const row = document.createElement("tr");
@@ -867,15 +878,10 @@ function updateLeaderboardUI(leaderboardData) {
     usernameCell.textContent = player.username;
     row.appendChild(usernameCell);
 
-    // Create coins cell
-    const coinsCell = document.createElement("td");
-    coinsCell.textContent = player.coins;
-    row.appendChild(coinsCell);
-
-    // Create wins cell (if available)
-    const winsCell = document.createElement("td");
-    winsCell.textContent = player.wins || "0";
-    row.appendChild(winsCell);
+    // Create winnings cell
+    const winningsCell = document.createElement("td");
+    winningsCell.textContent = player.winnings;
+    row.appendChild(winningsCell);
 
     leaderboardBody.appendChild(row);
   });
