@@ -107,6 +107,7 @@ router.post("/register", async (req, res) => {
 // Login user
 router.post("/login", async (req, res) => {
   try {
+    req.body = req.body instanceof Object ? req.body : JSON.parse(req.body);
     const { usernameOrEmail, password } = req.body;
 
     let email = usernameOrEmail;
