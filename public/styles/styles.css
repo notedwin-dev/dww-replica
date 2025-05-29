@@ -227,10 +227,10 @@ body {
 }
 
 .popup-modal table {
-  width: 50vh; /* Full width of the container */
+  width: 100%; /* Full width of the container */
   height: auto; /* Height adjusts to content with a maximum limit */
   max-height: 700px; /* Maximum height with scrolling */
-  overflow-x: scroll; /* Enables horizontal scrolling */
+  overflow-x: auto; /* Enables horizontal scrolling */
   border-collapse: collapse; /* Collapses table borders */
   background-color: #f8f9fa; /* Light background color */
   box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1); /* Subtle shadow for depth */
@@ -260,4 +260,131 @@ body {
 
 .popup-content tr:nth-child(even) {
   background-color: #e9ecef; /* Zebra striping for rows */
+}
+
+/* Mobile Responsive Styles */
+@media (max-width: 768px) {
+  body {
+    height: auto;
+    min-height: 100vh;
+  }
+  
+  .container {
+    width: calc(100% - 30px);
+    padding: 15px;
+    margin: 15px auto;
+  }
+  
+  /* Ensure 2x4 grid layout */
+  .animals {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+  }
+  
+  .animals .row {
+    display: flex;
+    flex-wrap: nowrap;
+    gap: 5px;
+    justify-content: space-between;
+    width: 100%;
+    margin-bottom: 5px;
+  }
+  
+  .animals .column {
+    flex: 1 0 25%;
+    max-width: 25%;
+    min-width: 25%;
+    box-sizing: border-box;
+    margin: 0;
+    padding: 2px;
+  }
+    
+  .animals button {
+    margin: 0;
+    padding: 8px 5px;
+    font-size: 0.9em;
+    width: 100%;
+    min-height: 40px;
+    white-space: nowrap;
+  }
+  
+  .bet-options {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 10px;
+  }
+  
+  .bet-options button {
+    margin: 0 0 10px 0;
+    width: auto;
+  }
+  
+  .popup-modal table {
+    width: 100%;
+    overflow-x: auto;
+    font-size: 0.9em;
+  }
+  
+  .popup-content {
+    width: 95%;
+    max-width: 400px;
+    padding: 15px;
+  }
+  
+  .popup-content th, 
+  .popup-content td {
+    padding: 8px;
+  }
+  
+  h1 {
+    font-size: 1.5em;
+  }
+  
+  .coins {
+    font-size: 1.2em;
+  }
+}
+
+/* Small phone optimization */
+@media (max-width: 480px) {
+  .animals .column {
+    flex: 1 0 25%;
+    max-width: 25%;
+    min-width: 25%;
+    padding: 1px;
+  }
+  
+  .animals button {
+    padding: 5px 2px;
+    font-size: 0.8em;
+    min-height: 35px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  
+  .bet-options button {
+    padding: 8px 12px;
+    font-size: 0.9em;
+  }
+  
+  .past-results ul {
+    justify-content: flex-start;
+    overflow-x: auto;
+    flex-wrap: nowrap;
+    padding-bottom: 10px;
+    -webkit-overflow-scrolling: touch;
+  }
+  
+  .past-results li {
+    flex-shrink: 0;
+  }
+  
+  /* Better emoji and text display on small screens */
+  .bet-info {
+    font-size: 0.8em;
+    margin-top: 5px;
+  }
 }

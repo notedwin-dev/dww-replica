@@ -303,13 +303,82 @@ body {
   box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
   margin: 0 auto;
   margin-top: 20px;
+  max-width: 1200px;
+  width: calc(100% - 40px);
 }
 
 /* Add mobile responsiveness */
 @media (max-width: 768px) {
+  .navbar {
+    flex-direction: column;
+    padding: 10px 0;
+  }
+  
+  .navbar-left, .navbar-center, .navbar-right {
+    width: 100%;
+    justify-content: center;
+    margin: 5px 0;
+  }
+  
+  .auth-buttons {
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+  
+  .container {
+    padding: 10px;
+    width: calc(100% - 20px);
+    margin-top: 10px;
+  }
+    .animals .row {
+    flex-wrap: nowrap;
+    justify-content: space-between;
+    gap: 5px;
+  }
+  
+  .animals .column {
+    width: 25%;
+    margin: 0;
+    padding: 2px;
+  }
+    .animals button {
+    width: 100%;
+    margin: 0;
+    font-size: 0.9em;
+    padding: 8px 5px;
+    min-height: 40px;
+  }
+  
+  .bet-options {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 10px;
+  }
+  
+  .bet-options button {
+    margin: 0 0 10px 0;
+    flex: 0 0 auto;
+  }
+  
+  h1 {
+    font-size: 1.5em;
+  }
+  
   .popup-content {
-    width: 90%;
+    width: 95%;
     max-width: 400px;
+    padding: 15px;
+  }
+  
+  .popup-modal table {
+    width: 100%;
+    font-size: 0.9em;
+  }
+  
+  .popup-content th,
+  .popup-content td {
+    padding: 8px;
   }
   
   /* Auth form responsive styles */
@@ -330,5 +399,37 @@ body {
     flex-direction: column;
     gap: 10px;
     text-align: center;
+  }
+  
+  .countdown, .coins {
+    font-size: 1.2em;
+  }
+}
+
+/* Small phone optimization */
+@media (max-width: 480px) {
+  .animals .column {
+    width: 25%;
+    padding: 1px;
+  }
+  
+  .animals button {
+    padding: 5px 2px;
+    font-size: 0.8em;
+    min-height: 35px;
+  }
+  
+  .bet-options button {
+    padding: 8px 12px;
+    font-size: 0.9em;
+  }
+  
+  .navbar {
+    padding: 5px 0;
+  }
+  
+  .auth-buttons button {
+    padding: 6px 10px;
+    font-size: 0.8em;
   }
 }
