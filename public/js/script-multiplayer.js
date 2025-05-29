@@ -118,8 +118,25 @@ const saveGuestStats = () => {
 
 // Reset guest stats from localStorage
 const resetGuestStats = () => {
+  // Remove current session data
   localStorage.removeItem("guestBets");
-}
+  localStorage.removeItem("guestCoins");
+  localStorage.removeItem("guestId");
+
+  // Remove persistent guest data
+  const lastGuestId = localStorage.getItem("lastGuestId");
+  if (lastGuestId) {
+    localStorage.removeItem(`guestData_${lastGuestId}`);
+    localStorage.removeItem("lastGuestId");
+  }
+
+  // Reset in-memory values for the current session
+  coins = 1000; // Reset to default starting coins
+  bets = { ...initialBets }; // Reset to empty bets
+
+  // Create a new session storage for the current session's game history
+  sessionStorage.setItem("currentSessionGames", JSON.stringify([]));
+};
 
 // Load guest stats from localStorage or from previous guest data
 const loadGuestStats = (previousGuestData = null) => {
@@ -173,7 +190,13 @@ const initializeGame = async () => {
   await loadAuthState();
 
   if (!user) {
-    loadGuestStats();
+    // For anonymous users, reset stats each time
+    if (isAnonymousUser) {
+      resetGuestStats();
+    } else {
+      // For non-anonymous guests, just load existing stats
+      loadGuestStats();
+    }
   }
 
   await fetchGameState();
@@ -624,6 +647,39 @@ const addResultToHistory = (result, winnings) => {
     updateHistoryTable(result, winnings);
   }
 
+  // For anonymous users, store game results in session storage
+  if (isAnonymousUser) {
+    const currentSessionGames = JSON.parse(
+      sessionStorage.getItem("currentSessionGames") || "[]"
+    );
+
+    // Calculate total bets placed on all animals
+    const totalBets = Object.values(bets).reduce((sum, bet) => sum + bet, 0);
+
+    // Create a game result object similar to what we'd get from the server
+    const gameResult = {
+      result: result.name,
+      result_display_name: result.displayName,
+      status: "ended",
+      end_time: new Date().toISOString(),
+      total_bets: totalBets,
+      total_winnings: winnings,
+      user_bets: Object.entries(bets)
+        .filter(([_, amount]) => amount > 0)
+        .map(([animal, amount]) => ({
+          animal,
+          amount,
+        })),
+    };
+
+    // Add to session storage
+    currentSessionGames.unshift(gameResult); // Add to beginning of the array
+    sessionStorage.setItem(
+      "currentSessionGames",
+      JSON.stringify(currentSessionGames)
+    );
+  }
+
   // Refresh the past results list from server to ensure synchronization
   fetchPastResultsList();
 };
@@ -631,6 +687,8 @@ const addResultToHistory = (result, winnings) => {
 // Fetch and update the past results list (synchronized for all players)
 async function fetchPastResultsList() {
   try {
+    // For anonymous users, always fetch global results (not user-specific)
+    // This ensures they see the global game results, not just their own
     const response = await fetch(`${API_URL}/game/history?limit=8`);
     const data = await response.json();
 
@@ -700,11 +758,6 @@ const resetBets = () => {
   document
     .querySelectorAll(".bet-options button")
     .forEach((button) => button.classList.remove("selected"));
-
-  // Reset guest bets in localStorage
-  if (isAnonymousUser) {
-    resetGuestStats();
-  }
 };
 
 // Toggle visibility of the history table
@@ -730,7 +783,17 @@ function toggleFoldResults() {
 // Fetch game history from the server (synchronized for all players)
 async function fetchGameHistory() {
   try {
-    // Set up headers if user is logged in
+    // For anonymous users, use session storage instead of fetching from server
+    if (!user && isAnonymousUser) {
+      // Use the current session's games from session storage
+      const currentSessionGames = JSON.parse(
+        sessionStorage.getItem("currentSessionGames") || "[]"
+      );
+      updateGameHistoryTable(currentSessionGames);
+      return;
+    }
+
+    // For logged-in users, fetch from server as usual
     const headers = {};
     if (user && authToken) {
       headers.Authorization = `Bearer ${authToken}`;
@@ -742,19 +805,6 @@ async function fetchGameHistory() {
     const data = await response.json();
 
     if (response.ok) {
-      // Add local bet data for guest users only if truly playing as guest (anonymous user)
-      if (!user && isAnonymousUser) {
-        // For anonymous users, add local bets to game history
-        data.forEach((game) => {
-          if (game.id && game.status === "ended") {
-            // Use localStorage information for this guest user
-            const storedBets = JSON.parse(
-              localStorage.getItem(`bets_game_${game.id}`) || "[]"
-            );
-            game.user_bets = storedBets;
-          }
-        });
-      }
       updateGameHistoryTable(data);
     } else {
       console.error("Error fetching game history:", data.error);
@@ -1034,17 +1084,9 @@ const loginAnonymousUser = async () => {
       await initializeSupabaseClient();
     }
 
-    // Check if we have a previous guest identity to try to recover
-    const lastGuestId = localStorage.getItem("lastGuestId");
-    let previousGuestData = null;
-
-    if (lastGuestId) {
-      const storedData = localStorage.getItem(`guestData_${lastGuestId}`);
-      if (storedData) {
-        previousGuestData = JSON.parse(storedData);
-        console.log("Found previous guest data:", previousGuestData);
-      }
-    }
+    // For non-persistent guest experience, we don't recover previous data
+    // Instead, we create a fresh start each time
+    let previousGuestData = null; // Keep this null so no previous data is loaded
 
     // Try to restore existing anonymous session
     const {
@@ -1396,4 +1438,24 @@ const initializeNavbar = () => {
 // Call navbar initialization on DOMContentLoaded
 document.addEventListener("DOMContentLoaded", () => {
   initializeNavbar();
+});
+
+// Initialize session storage for tracking current session's game history
+if (isAnonymousUser && !sessionStorage.getItem("currentSessionGames")) {
+  sessionStorage.setItem("currentSessionGames", JSON.stringify([]));
+}
+
+// Handle page unload for guest users
+window.addEventListener("beforeunload", () => {
+  if (isAnonymousUser && !user) {
+    // Clear persistent data but keep the current session data
+    // This allows the current session data to persist during page refreshes
+    // but ensures a completely fresh state between different visits
+    localStorage.removeItem("guestBets");
+    localStorage.removeItem("guestCoins");
+    localStorage.removeItem("guestId");
+
+    // Don't do any other cleanup - we want to keep the current session's game history
+    // in sessionStorage which will be automatically cleared when the browser is closed
+  }
 });
