@@ -16,8 +16,7 @@ const clientCrypto = {
       // Convert hex to array buffer for Web Crypto API
       const encryptedData = this.hexToArrayBuffer(encryptedHex);
       const iv = this.hexToArrayBuffer(ivHex);
-      
-      // Derive key using PBKDF2
+        // Derive key using PBKDF2
       const encoder = new TextEncoder();
       const keyMaterial = await window.crypto.subtle.importKey(
         'raw',
@@ -27,10 +26,13 @@ const clientCrypto = {
         ['deriveBits', 'deriveKey']
       );
       
+      // Convert hex salt string to byte array for proper salt handling
+      const saltBytes = this.hexToArrayBuffer(salt);
+      
       const key = await window.crypto.subtle.deriveKey(
         {
           name: 'PBKDF2',
-          salt: encoder.encode(salt),
+          salt: saltBytes,
           iterations: 1000,
           hash: 'SHA-256'
         },
@@ -46,14 +48,28 @@ const clientCrypto = {
         key,
         encryptedData
       );
-      
-      // Convert ArrayBuffer to string
+        // Convert ArrayBuffer to string
       const decoder = new TextDecoder();
       const decryptedText = decoder.decode(decrypted);
       
-      return JSON.parse(decryptedText);
+      console.log('Decryption successful');
+      
+      try {
+        const parsedData = JSON.parse(decryptedText);
+        return parsedData;
+      } catch (parseError) {
+        console.error('Error parsing decrypted JSON:', parseError);
+        console.log('Decrypted text (first 50 chars):', decryptedText.substring(0, 50));
+        throw parseError;
+      }
     } catch (error) {
       console.error('Decryption failed:', error);
+      console.log('Debug info:', {
+        encryptedLength: encryptedHex ? encryptedHex.length : 'undefined',
+        ivLength: ivHex ? ivHex.length : 'undefined',
+        saltLength: salt ? salt.length : 'undefined',
+        passphrasePresent: !!passphrase
+      });
       throw error;
     }
   },
@@ -90,18 +106,21 @@ const clientCrypto = {
     
     return bytes.buffer;
   },
-  
-  /**
+    /**
    * Generates a client-side passphrase from session data
    * @param {string} sessionId - Session ID from server
    * @returns {string} - Passphrase for decryption
    */
   generatePassphrase(sessionId) {
-    // For this implementation, we're using the server's secret
-    // which matches what the server used for encryption
-    return 'fallback-secret-key-for-dev';
+    // In a production environment, this would be more secure
+    // For now, we'll use the same server secret to ensure compatibility
+    // Note: The value should match process.env.SERVER_SECRET on the server
+    // The default in crypto.js is 'fallback-secret-key-for-dev'
+    return 'FuTmKsSzrsWLEol3BC8H6g+48+9mDh3yJnAU2uXCqVA=';
   }
 };
 
 // Export for use in other modules
+// Ensure it's available globally immediately
 window.clientCrypto = clientCrypto;
+console.log('clientCrypto utility loaded and available at window.clientCrypto');

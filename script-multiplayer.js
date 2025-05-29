@@ -125,12 +125,29 @@ const initializeSupabaseClient = async () => {
           { name: "PBKDF2" },
           false,
           ["deriveBits", "deriveKey"]
-        );
-
+        );        // Convert hex salt to array buffer for correct PBKDF2 derivation
+        let saltBytes;
+        try {
+          if (window.clientCrypto) {
+            saltBytes = window.clientCrypto.hexToArrayBuffer(encryptedConfig.salt);
+          } else {
+            // Convert salt from hex to ArrayBuffer manually
+            const saltHex = encryptedConfig.salt.replace(/\s/g, '');
+            const saltArray = new Uint8Array(saltHex.length / 2);
+            for (let i = 0; i < saltHex.length; i += 2) {
+              saltArray[i / 2] = parseInt(saltHex.substring(i, i + 2), 16);
+            }
+            saltBytes = saltArray.buffer;
+          }
+        } catch (e) {
+          console.error("Error converting salt:", e);
+          saltBytes = new TextEncoder().encode(encryptedConfig.salt);
+        }
+        
         const key = await window.crypto.subtle.deriveKey(
           {
             name: "PBKDF2",
-            salt: new TextEncoder().encode(encryptedConfig.salt),
+            salt: saltBytes,
             iterations: 1000,
             hash: "SHA-256",
           },
