@@ -229,44 +229,6 @@ body {
     margin-bottom: 15px;
 }
 
-/* Form styles */
-.popup-content form {
-  display: flex;
-  flex-direction: column;
-  gap: 15px;
-  margin-bottom: 20px;
-}
-
-.popup-content form div {
-  display: flex;
-  flex-direction: column;
-  gap: 5px;
-}
-
-.popup-content form label {
-  font-weight: bold;
-}
-
-.popup-content form input {
-  padding: 8px;
-  border: 1px solid #ccc;
-  border-radius: 4px;
-}
-
-.popup-content form button {
-  padding: 10px;
-  background-color: #007bff;
-  color: white;
-  border: none;
-  border-radius: 4px;
-  cursor: pointer;
-  margin-top: 10px;
-}
-
-.popup-content form button:hover {
-  background-color: #0056b3;
-}
-
 /* Leaderboard styles */
 #leaderboard-table {
   width: 100%;
@@ -367,16 +329,6 @@ body {
     width: 95%;
     max-width: 400px;
     padding: 15px;
-  }
-  
-  .popup-modal table {
-    width: 100%;
-    font-size: 0.9em;
-  }
-  
-  .popup-content th,
-  .popup-content td {
-    padding: 8px;
   }
   
   /* Auth form responsive styles */
