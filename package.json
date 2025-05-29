@@ -1,0 +1,31 @@
+{
+  "dependencies": {
+    "@supabase/supabase-js": "^2.49.8",
+    "cors": "^2.8.5",
+    "dotenv": "^16.5.0",
+    "express": "^5.1.0",
+    "jsonwebtoken": "^9.0.2",
+    "supabase": "^2.23.4"
+  },
+  "name": "dww-replica",
+  "version": "1.0.0",
+  "description": "大胃王 is one of the most common betting game that can be found in popular Voice Live Streaming platforms such as [MOMI](https://www.momitw.com/#/) and [Dino](https://dinoapp.chat/). Usually it requires the user to topup into the platform before they can start playing. In some platforms, the earnings from the game will not only double your virtual currency for gifting their favorite streamers, it will also enable them to withdraw their earnings into their bank account. This is the replica of the \"大胃王\" game from the voice live streaming platform known as [Dino](https://dinoapp.chat/), implemented using HTML, CSS, and JavaScript.",
+  "main": "script-multiplayer.js",
+  "devDependencies": {},
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "node server.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/notedwin-dev/dww-replica.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/notedwin-dev/dww-replica/issues"
+  },
+  "homepage": "https://github.com/notedwin-dev/dww-replica#readme"
+}
