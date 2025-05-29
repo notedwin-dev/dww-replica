@@ -66,9 +66,9 @@ class GameServer {
       clearInterval(this.gameInterval);
     }
 
-    console.log('Starting game server loop');
+    console.log("Starting game server loop");
     await this.startNewRound();
-    
+
     // Schedule the game loop to run continuously
     this.gameInterval = setInterval(async () => {
       await this.startNewRound();
@@ -79,15 +79,15 @@ class GameServer {
     try {
       // Calculate end time for this round
       const endTime = new Date(Date.now() + this.roundDuration);
-      
+
       // Create a new game in the database
       const { data: gameData, error } = await supabase
-        .from('games')
+        .from("games")
         .insert({
-          status: 'active',
+          status: "active",
           start_time: new Date(),
           end_time: endTime,
-          created_at: new Date()
+          created_at: new Date(),
         })
         .select()
         .single();
@@ -103,7 +103,7 @@ class GameServer {
 
       return gameData;
     } catch (error) {
-      console.error('Error starting new round:', error);
+      console.error("Error starting new round:", error);
     }
   }
 
@@ -111,42 +111,42 @@ class GameServer {
     try {
       // Get a random animal as the result
       const result = getRandomAnimal();
-      
+
       console.log(`Game ${gameId} ended with result: ${result.name}`);
 
       // Update the game with the result
       const { error: updateError } = await supabase
-        .from('games')
-        .update({ 
-          status: 'ended', 
+        .from("games")
+        .update({
+          status: "ended",
           result: result.name,
           result_display_name: result.displayName,
-          result_return_rate: result.return
+          result_return_rate: result.return,
         })
-        .eq('id', gameId);
+        .eq("id", gameId);
 
       if (updateError) throw updateError;
 
       // Process all bets for this game
       await this.processBets(gameId, result);
-      
+
       // Broadcast the result via Supabase Realtime
       const { error: broadcastError } = await supabase
-        .from('game_events')
+        .from("game_events")
         .insert({
           game_id: gameId,
-          event_type: 'result',
+          event_type: "result",
           data: {
             result: result.name,
             displayName: result.displayName,
-            return_rate: result.return
+            return_rate: result.return,
           },
-          created_at: new Date()
+          created_at: new Date(),
         });
 
       if (broadcastError) throw broadcastError;
     } catch (error) {
-      console.error('Error ending round:', error);
+      console.error("Error ending round:", error);
     }
   }
 
@@ -154,24 +154,24 @@ class GameServer {
     try {
       // Get all bets for this game
       const { data: bets, error } = await supabase
-        .from('bets')
-        .select('*')
-        .eq('game_id', gameId);
+        .from("bets")
+        .select("*")
+        .eq("game_id", gameId);
 
       if (error) throw error;
 
       // Process each bet and update user coins
       for (const bet of bets) {
         let winnings = 0;
-        
+
         // Calculate winnings if user bet on the winning animal
         if (bet.animal === result.name) {
           winnings = bet.amount * result.return;
-          
+
           // Update user's coins with their winnings
-          const { error: updateError } = await supabase.rpc('add_coins', {
+          const { error: updateError } = await supabase.rpc("add_coins", {
             user_id: bet.user_id,
-            amount: winnings
+            amount: winnings,
           });
 
           if (updateError) throw updateError;
@@ -179,14 +179,14 @@ class GameServer {
 
         // Record the result of this bet
         const { error: resultError } = await supabase
-          .from('bet_results')
+          .from("bet_results")
           .insert({
             bet_id: bet.id,
             game_id: gameId,
             user_id: bet.user_id,
             result: result.name,
             winnings: winnings,
-            created_at: new Date()
+            created_at: new Date(),
           });
 
         if (resultError) throw resultError;
@@ -194,9 +194,70 @@ class GameServer {
 
       console.log(`Processed ${bets.length} bets for game ${gameId}`);
     } catch (error) {
-      console.error('Error processing bets:', error);
+      console.error("Error processing bets:", error);
+    }
+  }
+
+  // Serverless-compatible method to ensure there's always an active game
+  async ensureActiveGame() {
+    try {
+      // Check if there's an active game
+      const { data: activeGame, error } = await supabase
+        .from("games")
+        .select("*")
+        .eq("status", "active")
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .single();
+
+      if (error && error.code !== "PGRST116") {
+        // PGRST116 = no rows returned
+        throw error;
+      }
+
+      // If no active game or the active game has expired, start a new one
+      if (!activeGame || new Date() > new Date(activeGame.end_time)) {
+        if (activeGame && new Date() > new Date(activeGame.end_time)) {
+          // End the expired game first
+          await this.endRound(activeGame.id);
+        }
+        // Start a new game
+        await this.startNewRound();
+      }
+
+      return true;
+    } catch (error) {
+      console.error("Error ensuring active game:", error);
+      throw error;
+    }
+  }
+
+  // Serverless-compatible method to process game cycle
+  async processGameCycle() {
+    try {
+      // Check for games that need to be ended
+      const { data: expiredGames, error } = await supabase
+        .from("games")
+        .select("*")
+        .eq("status", "active")
+        .lt("end_time", new Date().toISOString());
+
+      if (error) throw error;
+
+      // End expired games
+      for (const game of expiredGames || []) {
+        await this.endRound(game.id);
+      }
+
+      // Ensure there's always an active game
+      await this.ensureActiveGame();
+
+      return true;
+    } catch (error) {
+      console.error("Error processing game cycle:", error);
+      throw error;
     }
   }
 }
 
-module.exports = new GameServer();
+module.exports = { GameServer };

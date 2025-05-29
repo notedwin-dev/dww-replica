@@ -109,7 +109,6 @@ const fetchGameState = async () => {
 
     const response = await fetch(`${API_URL}/game/state`, { headers });
     const data = await response.json();
-
     if (response.ok) {
       if (data.game) {
         currentGameId = data.game.id;
@@ -133,6 +132,21 @@ const fetchGameState = async () => {
         } else {
           // Start local countdown if not ended
           startCountdown();
+        }
+      } else {
+        // No active game found, try to create one
+        console.log("No active game found, attempting to create one...");
+        try {
+          const createResponse = await fetch(`${API_URL}/game/create`, {
+            method: "POST",
+          });
+          if (createResponse.ok) {
+            console.log("Created new game, refetching state...");
+            // Wait a moment then try fetching state again
+            setTimeout(() => fetchGameState(), 1000);
+          }
+        } catch (createError) {
+          console.error("Failed to create new game:", createError);
         }
       }
     } else {
@@ -867,15 +881,56 @@ const specials = [
 ];
 
 // Initialize the game when page loads
-document.addEventListener('DOMContentLoaded', () => {
-  const closeButton = document.getElementById('close-button');
-  closeButton.addEventListener('click', toggleFoldResults);
-  
+document.addEventListener("DOMContentLoaded", () => {
+  const closeButton = document.getElementById("close-button");
+  closeButton.addEventListener("click", toggleFoldResults);
+
   // Add event listener for close-leaderboard button
-  const closeLeaderboardButton = document.getElementById('close-leaderboard');
+  const closeLeaderboardButton = document.getElementById("close-leaderboard");
   if (closeLeaderboardButton) {
-    closeLeaderboardButton.addEventListener('click', hideLeaderboard);
+    closeLeaderboardButton.addEventListener("click", hideLeaderboard);
   }
-  
+
   initializeGame();
+
+  // Start heartbeat for serverless compatibility
+  startHeartbeat();
 });
+
+// Serverless heartbeat to keep games running
+function startHeartbeat() {
+  // Call heartbeat every 5 seconds to ensure games are active
+  setInterval(async () => {
+    try {
+      const response = await fetch(`${API_URL}/game/heartbeat`);
+      const data = await response.json();
+
+      if (response.ok) {
+        // If no active games, try to create one
+        if (data.gameStatus === "no_active_games") {
+          try {
+            await fetch(`${API_URL}/game/create`, { method: "POST" });
+            console.log("Created new game due to no active games");
+          } catch (createError) {
+            console.error("Failed to create game:", createError);
+          }
+        }
+
+        // If game needs ending, fetch current state to trigger updates
+        if (data.gameStatus === "game_needs_ending") {
+          try {
+            await fetchGameState();
+            console.log("Fetched game state to check for updates");
+          } catch (stateError) {
+            console.error("Failed to fetch game state:", stateError);
+          }
+        }
+      }
+    } catch (error) {
+      console.error("Heartbeat failed:", error);
+    }
+  }, 5000);
+
+  // Initial heartbeat call
+  fetch(`${API_URL}/game/heartbeat`).catch(console.error);
+}
