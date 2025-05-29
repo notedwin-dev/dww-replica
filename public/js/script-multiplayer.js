@@ -83,12 +83,31 @@ const loadAuthState = () => {
 
 // Save guest stats to localStorage
 const saveGuestStats = () => {
+  // Create or get the guest ID
+  const guestId =
+    localStorage.getItem("guestId") ||
+    `guest_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+
+  // Save current state
   localStorage.setItem("guestBets", JSON.stringify(bets));
   localStorage.setItem("guestCoins", coins);
+  localStorage.setItem("guestId", guestId);
+
+  // Also save to the persistent guest data store
+  const guestData = {
+    id: guestId,
+    coins: coins,
+    bets: bets,
+    lastSeen: new Date().toISOString(),
+  };
+
+  localStorage.setItem(`guestData_${guestId}`, JSON.stringify(guestData));
+  localStorage.setItem("lastGuestId", guestId);
 };
 
-// Load guest stats from localStorage
-const loadGuestStats = () => {
+// Load guest stats from localStorage or from previous guest data
+const loadGuestStats = (previousGuestData = null) => {
+  // Try to load from current session storage first
   const savedBets = localStorage.getItem("guestBets");
   const savedCoins = localStorage.getItem("guestCoins");
 
@@ -98,6 +117,31 @@ const loadGuestStats = () => {
 
   if (savedCoins) {
     coins = parseInt(savedCoins, 10);
+  }
+
+  // If previous guest data exists and we don't have current session data, use that instead
+  if (previousGuestData && (!savedBets || !savedCoins)) {
+    console.log("Restoring previous guest data:", previousGuestData);
+
+    // If no current bets, restore from previous guest data
+    if (!savedBets && previousGuestData.bets) {
+      bets = previousGuestData.bets;
+      localStorage.setItem("guestBets", JSON.stringify(bets));
+    }
+
+    // If no current coins, restore from previous guest data
+    if (!savedCoins && previousGuestData.coins) {
+      coins = previousGuestData.coins;
+      localStorage.setItem("guestCoins", coins.toString());
+    }
+
+    // Store the guest ID for future reference
+    localStorage.setItem("guestId", previousGuestData.id);
+
+    // Show a message to the user that their data was restored
+    document.getElementById(
+      "result"
+    ).textContent = `Welcome back! Your previous guest data (${previousGuestData.coins} coins) has been restored.`;
   }
 
   updateCoinsDisplay();
@@ -411,6 +455,23 @@ const updateLocalBet = (animal, amount) => {
   bets[animal] += amount;
   coins -= amount;
 
+  // For guest users, store bet info by game ID for history tracking
+  if (!user && currentGameId) {
+    const storedBets = JSON.parse(
+      localStorage.getItem(`bets_game_${currentGameId}`) || "[]"
+    );
+    storedBets.push({
+      animal: animal,
+      amount: amount,
+      timestamp: new Date().toISOString(),
+      game_id: currentGameId,
+    });
+    localStorage.setItem(
+      `bets_game_${currentGameId}`,
+      JSON.stringify(storedBets)
+    );
+  }
+
   // Save updated stats to localStorage
   saveGuestStats();
 
@@ -633,10 +694,31 @@ function toggleFoldResults() {
 // Fetch game history from the server (synchronized for all players)
 async function fetchGameHistory() {
   try {
-    const response = await fetch(`${API_URL}/game/history?limit=10`);
+    // Set up headers if user is logged in
+    const headers = {};
+    if (user && authToken) {
+      headers.Authorization = `Bearer ${authToken}`;
+    }
+
+    const response = await fetch(`${API_URL}/game/history?limit=10`, {
+      headers: headers,
+    });
     const data = await response.json();
 
     if (response.ok) {
+      // Add local bet data for guest users
+      if (!user) {
+        // For anonymous users, add local bets to game history
+        data.forEach((game) => {
+          if (game.id && game.status === "ended") {
+            // If this is a guest user, we need to use localStorage information
+            const storedBets = JSON.parse(
+              localStorage.getItem(`bets_game_${game.id}`) || "[]"
+            );
+            game.user_bets = storedBets;
+          }
+        });
+      }
       updateGameHistoryTable(data);
     } else {
       console.error("Error fetching game history:", data.error);
@@ -673,11 +755,34 @@ function updateGameHistoryTable(gameHistory) {
         game.result_display_name ||
         (resultAnimal ? resultAnimal.displayName : game.result);
 
-      // Show "No bets placed" to match single player format when no bets were made
-      betsCell.textContent = "No bets placed";
+      // Calculate user's bets and winnings for this game
+      let userBetsTotal = 0;
+      let userWinnings = 0;
 
-      // Show 0 winnings to match single player format
-      winningsCell.textContent = "0";
+      // Check if this game has user's bets
+      if (game.user_bets && Array.isArray(game.user_bets)) {
+        // Sum up all bets placed by the user for this game
+        userBetsTotal = game.user_bets.reduce(
+          (sum, bet) => sum + bet.amount,
+          0
+        );
+
+        // Calculate winnings if the user bet on the winning animal
+        const winningBet = game.user_bets.find(
+          (bet) => bet.animal === game.result
+        );
+        if (winningBet) {
+          const multiplier = resultAnimal ? resultAnimal.return : 5; // Default to 5x if not found
+          userWinnings = winningBet.amount * multiplier;
+        }
+      }
+
+      // Show user's bets or "No bets placed"
+      betsCell.textContent =
+        userBetsTotal > 0 ? userBetsTotal : "No bets placed";
+
+      // Show user's winnings
+      winningsCell.textContent = userWinnings;
 
       // Format the timestamp
       const gameDate = new Date(game.end_time);
@@ -886,6 +991,18 @@ const loginAnonymousUser = async () => {
       await initializeSupabaseClient();
     }
 
+    // Check if we have a previous guest identity to try to recover
+    const lastGuestId = localStorage.getItem("lastGuestId");
+    let previousGuestData = null;
+
+    if (lastGuestId) {
+      const storedData = localStorage.getItem(`guestData_${lastGuestId}`);
+      if (storedData) {
+        previousGuestData = JSON.parse(storedData);
+        console.log("Found previous guest data:", previousGuestData);
+      }
+    }
+
     // Try to restore existing anonymous session
     const {
       data: { session },
@@ -898,7 +1015,9 @@ const loginAnonymousUser = async () => {
       localStorage.setItem("anonymousUser", "true");
       localStorage.setItem("supabaseSession", JSON.stringify(session));
       updateNavbarForAnonymousUser();
-      loadGuestStats();
+
+      // Regular load or recover previous data if session is new
+      loadGuestStats(previousGuestData);
     } else {
       // Sign in anonymously
       const { data, error } = await supabase.auth.signInAnonymously();
@@ -910,8 +1029,10 @@ const loginAnonymousUser = async () => {
       // Store the session in localStorage to persist between page loads
       localStorage.setItem("anonymousUser", "true");
       localStorage.setItem("supabaseSession", JSON.stringify(data.session));
+
+      // For new sessions, try to recover previous guest data
       updateNavbarForAnonymousUser();
-      loadGuestStats();
+      loadGuestStats(previousGuestData);
     }
   } catch (error) {
     console.error("Anonymous login error:", error);
@@ -924,13 +1045,31 @@ const loginAnonymousUser = async () => {
 
 // Logout anonymous user
 const logoutAnonymousUser = async () => {
+  // Before logging out, save guest data with a unique guest ID if it doesn't exist
+  const guestId =
+    localStorage.getItem("guestId") ||
+    `guest_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+
+  // Save all guest data to localStorage
+  const guestData = {
+    id: guestId,
+    coins: coins,
+    bets: bets,
+    lastSeen: new Date().toISOString(),
+  };
+
+  // Store under a specific key for this guest ID
+  localStorage.setItem(`guestData_${guestId}`, JSON.stringify(guestData));
+  localStorage.setItem("lastGuestId", guestId);
+
+  // Now proceed with actual logout
   if (supabase) {
     await supabase.auth.signOut();
   }
 
   isAnonymousUser = false;
 
-  // Remove all anonymous user data from localStorage
+  // Remove session data but keep the guest ID reference
   localStorage.removeItem("anonymousUser");
   localStorage.removeItem("supabaseSession");
   localStorage.removeItem("guestBets");
@@ -991,7 +1130,7 @@ const updateNavbarForGuest = () => {
 // Show the leaderboard
 function showLeaderboard() {
   const leaderboardModal = document.getElementById("leaderboard-modal");
-  leaderboardModal.style.display = "block";
+  leaderboardModal.style.display = "flex"; // Use flex to ensure proper centering
 
   // Fetch leaderboard data
   fetchLeaderboard();
@@ -1047,6 +1186,11 @@ function updateLeaderboardUI(leaderboardData) {
     const usernameCell = document.createElement("td");
     usernameCell.textContent = player.username;
     row.appendChild(usernameCell);
+
+    // Create coins cell
+    const coinsCell = document.createElement("td");
+    coinsCell.textContent = player.coins;
+    row.appendChild(coinsCell);
 
     // Create winnings cell
     const winningsCell = document.createElement("td");

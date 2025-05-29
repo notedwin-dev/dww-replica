@@ -196,9 +196,10 @@ router.post("/bet", authenticateToken, async (req, res) => {
 });
 
 // Get game history
-router.get("/history", async (req, res) => {
+router.get("/history", authenticateToken, async (req, res) => {
   try {
     const { limit = 20, page = 0 } = req.query;
+    const userId = req.user?.id;
 
     // Get past games with their results
     const { data: gamesData, error: gamesError } = await supabase
@@ -208,6 +209,27 @@ router.get("/history", async (req, res) => {
       .range(page * limit, page * limit + limit - 1);
 
     if (gamesError) throw gamesError;
+
+    // If user is logged in, fetch their bets for these games
+    if (userId) {
+      // Get all game IDs from the results
+      const gameIds = gamesData.map((game) => game.id);
+
+      // Fetch all bets for this user for these games
+      const { data: userBets, error: betsError } = await supabase
+        .from("bets")
+        .select("*")
+        .eq("user_id", userId)
+        .in("game_id", gameIds);
+
+      if (betsError) throw betsError;
+
+      // Add user's bets to each game object
+      gamesData.forEach((game) => {
+        // Filter bets for current game
+        game.user_bets = userBets.filter((bet) => bet.game_id === game.id);
+      });
+    }
 
     res.status(200).json(gamesData);
   } catch (error) {
