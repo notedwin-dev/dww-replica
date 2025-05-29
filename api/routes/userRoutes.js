@@ -22,17 +22,27 @@ const authenticateToken = (req, res, next) => {
 // Register new user
 router.post("/register", async (req, res) => {
   try {
-    const { email, password, username } = req.body;
-
-    // Check if user exists
-    const { data: existingUser } = await supabase
+    const { email, password, username } = req.body; // Check if user exists by email or username
+    const { data: existingUserByEmail } = await supabase
       .from("users")
       .select()
       .eq("email", email)
       .single();
 
-    if (existingUser) {
-      return res.status(400).json({ error: "User already exists" });
+    if (existingUserByEmail) {
+      return res
+        .status(400)
+        .json({ error: "User with this email already exists" });
+    }
+
+    const { data: existingUserByUsername } = await supabase
+      .from("users")
+      .select()
+      .eq("username", username)
+      .single();
+
+    if (existingUserByUsername) {
+      return res.status(400).json({ error: "Username is already taken" });
     }
 
     // Register user with Supabase auth
@@ -52,25 +62,30 @@ router.post("/register", async (req, res) => {
     if (!user || !user.id) {
       console.error("Supabase signUp response:", { user, authError });
       return res.status(500).json({ error: "Failed to register user" });
-    }
-
-    // Create user profile in our custom users table
-    const { data, insertError } = await supabase
+    } // Create user profile in our custom users table
+    const { data, error: insertError } = await supabase
       .from("users")
       .insert({
         id: user.id,
         email,
         username,
         coins: 10000, // Starting coins
-        created_at: new Date(),
       })
-      .select();
+      .select()
+      .single();
 
-    data && console.log("User profile created:", data);
+    console.log("Insert operation result:", { data, insertError });
 
-    if (!data && insertError) {
-      throw insertError?.message || "Failed to create user profile";
+    if (insertError) {
+      console.error("Database insert error:", insertError);
+      throw new Error(`Failed to create user profile: ${insertError.message}`);
     }
+
+    if (!data) {
+      throw new Error("User profile was not created - no data returned");
+    }
+
+    console.log("User profile created successfully:", data);
     // Create JWT token
     const token = jwt.sign({ id: user.id }, process.env.JWT_SECRET);
 
