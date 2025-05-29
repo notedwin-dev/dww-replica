@@ -1,11 +1,12 @@
 // API URL - change this for production
-const API_URL = window.location.hostname === 'localhost' 
-  ? 'http://localhost:3000/api'
-  : '/api';
+const API_URL =
+  window.location.hostname === "localhost"
+    ? "http://localhost:3000/api"
+    : "/api";
 
 // Mode switching functions
 function switchToSinglePlayer() {
-  window.location.href = 'index.html';
+  window.location.href = "index.html";
 }
 
 // We'll set these after fetching from the server
@@ -35,16 +36,26 @@ let isCountdownActive = false;
 let countdownInterval = null;
 
 // Authentication state
-const loadAuthState = () => {
+const loadAuthState = async () => {
   const savedUser = localStorage.getItem("user");
   const savedToken = localStorage.getItem("token");
   const anonymousUser = localStorage.getItem("anonymousUser");
   const savedSupabaseSession = localStorage.getItem("supabaseSession");
 
   if (savedUser && savedToken) {
-    user = JSON.parse(savedUser);
+    // Temporarily use saved data to show something quickly
+    const tempUser = JSON.parse(savedUser);
+    user = tempUser;
     authToken = savedToken;
-    updateUIForLoggedInUser(user);
+    updateUIForLoggedInUser(tempUser);
+
+    // But immediately fetch the latest data from server
+    try {
+      await fetchUserData();
+      console.log("Updated user data from server");
+    } catch (error) {
+      console.error("Failed to fetch user data, using cached data", error);
+    }
   } else if (anonymousUser && anonymousUser === "true") {
     // Load anonymous user session
     if (savedSupabaseSession) {
@@ -153,7 +164,8 @@ const initializeGame = async () => {
   // First, fetch Supabase configuration
   await initializeSupabaseClient();
 
-  loadAuthState();
+  // Load auth state and wait for it to complete since it's now async
+  await loadAuthState();
 
   if (!user) {
     loadGuestStats();
@@ -246,12 +258,16 @@ const fetchGameState = async () => {
 
         console.log(`Setting countdown to ${countdown} seconds`);
 
-        updateCountdownDisplay();
-
-        // If user is logged in, update coins
+        updateCountdownDisplay(); // If user is logged in, update coins
         if (user && data.userCoins !== undefined) {
           coins = data.userCoins;
           updateCoinsDisplay();
+
+          // Update localStorage with the latest coins value
+          if (user) {
+            user.coins = data.userCoins;
+            localStorage.setItem("user", JSON.stringify(user));
+          }
         }
 
         // Update bet display if there are any bets
@@ -441,6 +457,12 @@ const placeBet = async (animal) => {
     if (response.ok) {
       // Update local state and UI
       updateLocalBet(animal, selectedBetAmount);
+
+      // Update user object in localStorage with new coin amount
+      if (user) {
+        user.coins = coins;
+        localStorage.setItem("user", JSON.stringify(user));
+      }
     } else {
       alert(`Failed to place bet: ${data.error}`);
     }
