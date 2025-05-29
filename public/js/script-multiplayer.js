@@ -504,21 +504,53 @@ const placeBet = async (animal) => {
 const updateLocalBet = (animal, amount) => {
   bets[animal] += amount;
   coins -= amount;
-
-  // For guest users, store bet info by game ID for history tracking
-  if (!user && currentGameId) {
-    const storedBets = JSON.parse(
-      localStorage.getItem(`bets_game_${currentGameId}`) || "[]"
+  // For guest users, store bet info in session storage for current session tracking
+  if (!user && isAnonymousUser && currentGameId) {
+    // Get current session games
+    const currentSessionGames = JSON.parse(
+      sessionStorage.getItem("currentSessionGames") || "[]"
     );
-    storedBets.push({
-      animal: animal,
-      amount: amount,
-      timestamp: new Date().toISOString(),
-      game_id: currentGameId,
-    });
-    localStorage.setItem(
-      `bets_game_${currentGameId}`,
-      JSON.stringify(storedBets)
+
+    // Find the current game in the session storage
+    const currentGameIndex = currentSessionGames.findIndex(
+      (game) => game.id === currentGameId
+    );
+
+    if (currentGameIndex >= 0) {
+      // Game exists, add the bet to it
+      if (!currentSessionGames[currentGameIndex].user_bets) {
+        currentSessionGames[currentGameIndex].user_bets = [];
+      }
+
+      currentSessionGames[currentGameIndex].user_bets.push({
+        animal: animal,
+        amount: amount,
+        timestamp: new Date().toISOString(),
+      });
+
+      // Update total bets
+      currentSessionGames[currentGameIndex].total_bets =
+        (currentSessionGames[currentGameIndex].total_bets || 0) + amount;
+    } else {
+      // Game doesn't exist yet, create a placeholder
+      currentSessionGames.unshift({
+        id: currentGameId,
+        status: "active",
+        user_bets: [
+          {
+            animal: animal,
+            amount: amount,
+            timestamp: new Date().toISOString(),
+          },
+        ],
+        total_bets: amount,
+      });
+    }
+
+    // Save back to session storage
+    sessionStorage.setItem(
+      "currentSessionGames",
+      JSON.stringify(currentSessionGames)
     );
   }
 
