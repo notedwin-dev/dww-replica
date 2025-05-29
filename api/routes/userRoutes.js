@@ -112,7 +112,7 @@ router.post("/login", async (req, res) => {
     let email = usernameOrEmail;
 
     // Check if input is username (doesn't contain @)
-    if (!usernameOrEmail.includes("@")) {
+    if (usernameOrEmail && !usernameOrEmail.includes("@")) {
       // Look up email by username
       const { data: userByUsername, error: lookupError } = await supabase
         .from("users")
