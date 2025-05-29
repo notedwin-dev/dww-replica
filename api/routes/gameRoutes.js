@@ -210,7 +210,7 @@ router.get("/history", authenticateToken, async (req, res) => {
 
     if (gamesError) throw gamesError;
 
-    // If user is logged in, fetch their bets for these games
+    // If user is logged in, fetch their bets and bet results for these games
     if (userId) {
       // Get all game IDs from the results
       const gameIds = gamesData.map((game) => game.id);
@@ -224,10 +224,36 @@ router.get("/history", authenticateToken, async (req, res) => {
 
       if (betsError) throw betsError;
 
-      // Add user's bets to each game object
+      // Fetch all bet results for this user for these games
+      const { data: userBetResults, error: betResultsError } = await supabase
+        .from("bet_results")
+        .select("*")
+        .eq("user_id", userId)
+        .in("game_id", gameIds);
+
+      if (betResultsError) throw betResultsError;
+
+      // Add user's bets and bet results to each game object
       gamesData.forEach((game) => {
         // Filter bets for current game
         game.user_bets = userBets.filter((bet) => bet.game_id === game.id);
+
+        // Filter bet results for current game
+        game.user_bet_results = userBetResults.filter(
+          (result) => result.game_id === game.id
+        );
+
+        // Calculate total bets placed
+        game.total_bets = game.user_bets.reduce(
+          (sum, bet) => sum + bet.amount,
+          0
+        );
+
+        // Calculate total winnings
+        game.total_winnings = game.user_bet_results.reduce(
+          (sum, result) => sum + result.winnings,
+          0
+        );
       });
     }
 
@@ -415,19 +441,39 @@ async function endGame(gameId) {
       })
       .eq("id", gameId);
 
-    if (updateError) throw updateError;
-
-    // Get all bets for this game
+    if (updateError) throw updateError; // Get all bets for this game
     const { data: bets, error: betsError } = await supabase
       .from("bets")
       .select("*")
       .eq("game_id", gameId);
 
-    if (betsError) throw betsError; // Process winning bets and update user coins
-    for (const bet of bets || []) {
-      if (bet.animal === result.name) {
-        const winnings = bet.amount * result.return;
+    if (betsError) throw betsError;
 
+    // Process winning bets and update user coins
+    for (const bet of bets || []) {
+      // Calculate winnings (will be 0 for losing bets)
+      const winnings =
+        bet.animal === result.name ? bet.amount * result.return : 0;
+
+      // Store the bet result in bet_results table, regardless of win/loss
+      const { error: betResultError } = await supabase
+        .from("bet_results")
+        .insert({
+          bet_id: bet.id,
+          game_id: gameId,
+          user_id: bet.user_id,
+          result: result.name,
+          winnings: winnings,
+          created_at: new Date(),
+        });
+
+      if (betResultError) {
+        console.error("Error storing bet result:", betResultError);
+        continue;
+      }
+
+      // If it's a winning bet, update the user's coins
+      if (winnings > 0) {
         // Get current user coins first
         const { data: userData, error: getUserError } = await supabase
           .from("users")

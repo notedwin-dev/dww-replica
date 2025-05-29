@@ -573,6 +573,7 @@ const stopCountdown = () => {
 // Display game result
 const displayResult = (result) => {
   const resultElement = document.getElementById("result");
+  let totalBet = Object.values(bets).reduce((sum, amount) => sum + amount, 0);
   let winnings = 0;
 
   if (result) {
@@ -581,6 +582,12 @@ const displayResult = (result) => {
       winnings = bets[result.name] * result.return;
       coins += winnings;
       updateCoinsDisplay();
+
+      // Update user object in localStorage with new coin amount
+      if (user) {
+        user.coins = coins;
+        localStorage.setItem("user", JSON.stringify(user));
+      }
     }
 
     // Display result message
@@ -589,13 +596,13 @@ const displayResult = (result) => {
     } else {
       resultElement.textContent = `The outcome was ${result.displayName}. ${
         Object.values(bets).some((bet) => bet > 0)
-          ? "Better luck next time!"
+          ? `You lost ${totalBet} coins.`
           : "You didn't place any bets."
       }`;
     }
 
     // Add result to history
-    addResultToHistory(result);
+    addResultToHistory(result, winnings);
   }
 
   // Reset bets for next game
@@ -603,13 +610,13 @@ const displayResult = (result) => {
 };
 
 // Add result to history display
-const addResultToHistory = (result) => {
+const addResultToHistory = (result, winnings) => {
   // Don't add to past results list here - it will be synced from server
   // Just update the history table if it's currently visible
   const tableVisible =
     document.getElementById("history-table").style.display !== "none";
   if (tableVisible) {
-    updateHistoryTable(result);
+    updateHistoryTable(result, winnings);
   }
 
   // Refresh the past results list from server to ensure synchronization
@@ -650,7 +657,7 @@ function updatePastResultsList(gameHistory) {
 }
 
 // Update history table
-const updateHistoryTable = (result) => {
+const updateHistoryTable = (result, winnings) => {
   const tableRow = document
     .getElementById("history-table")
     .querySelector("tbody");
@@ -666,13 +673,10 @@ const updateHistoryTable = (result) => {
   // Calculate total bets placed on all animals
   const totalBets = Object.values(bets).reduce((sum, bet) => sum + bet, 0);
 
-  // Calculate winnings for this result
-  const winnings = bets[result.name] ? bets[result.name] * result.return : 0;
-
   // Populate cells
   animalCell.textContent = result.displayName;
   betsCell.textContent = totalBets > 0 ? totalBets : "No bets placed";
-  winningsCell.textContent = winnings;
+  winningsCell.textContent = winnings || 0; // Ensure we display 0 when no winnings
   timeCell.textContent = new Date().toLocaleString();
 };
 
@@ -770,25 +774,35 @@ function updateGameHistoryTable(gameHistory) {
       // Find the animal data to get display name and return multiplier
       const resultAnimal =
         animals.find((a) => a.name === game.result) ||
-        specials.find((s) => s.name === game.result);
-
-      // Display animal name (use display name from game data or find from animals array)
+        specials.find((s) => s.name === game.result); // Display animal name (use display name from game data or find from animals array)
       animalCell.textContent =
         game.result_display_name ||
         (resultAnimal ? resultAnimal.displayName : game.result);
 
-      // Calculate user's bets and winnings for this game
-      let userBetsTotal = 0;
-      let userWinnings = 0;
+      // Use the total bets and winnings from the server when available
+      let userBetsTotal = game.total_bets || 0;
+      let userWinnings = game.total_winnings || 0;
 
-      // Check if this game has user's bets
-      if (game.user_bets && Array.isArray(game.user_bets)) {
+      // If server didn't provide totals (e.g., for guest users), calculate from local data
+      if (
+        userBetsTotal === 0 &&
+        game.user_bets &&
+        Array.isArray(game.user_bets)
+      ) {
         // Sum up all bets placed by the user for this game
         userBetsTotal = game.user_bets.reduce(
           (sum, bet) => sum + bet.amount,
           0
         );
+      }
 
+      // For guest users or if the backend hasn't been updated yet
+      if (
+        userWinnings === 0 &&
+        !game.total_winnings &&
+        game.user_bets &&
+        Array.isArray(game.user_bets)
+      ) {
         // Calculate winnings if the user bet on the winning animal
         const winningBet = game.user_bets.find(
           (bet) => bet.animal === game.result
