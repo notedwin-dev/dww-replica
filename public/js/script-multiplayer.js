@@ -538,19 +538,32 @@ function updateGameHistoryTable(gameHistory) {
   // Add each game result to the table
   gameHistory.forEach((game) => {
     if (game.result && game.status === "ended") {
-      const newRow = tableBody.insertRow(1); // Insert after header row
+      const newRow = tableBody.insertRow();
 
-      // Add cells to the row
       const animalCell = newRow.insertCell(0);
       const betsCell = newRow.insertCell(1);
       const winningsCell = newRow.insertCell(2);
       const timeCell = newRow.insertCell(3);
 
-      // Populate cells with game data
-      animalCell.textContent = game.result_display_name || game.result;
-      betsCell.textContent = "Global Game"; // Since we don't have individual bet data
-      winningsCell.textContent = `${game.result_return_rate}x`; // Show return rate
-      timeCell.textContent = new Date(game.created_at).toLocaleString();
+      // Find the animal data to get display name and return multiplier
+      const resultAnimal =
+        animals.find((a) => a.name === game.result) ||
+        specials.find((s) => s.name === game.result);
+
+      // Display animal name (use display name from game data or find from animals array)
+      animalCell.textContent =
+        game.result_display_name ||
+        (resultAnimal ? resultAnimal.displayName : game.result);
+
+      // Show "No bets placed" to match single player format when no bets were made
+      betsCell.textContent = "No bets placed";
+
+      // Show 0 winnings to match single player format
+      winningsCell.textContent = "0";
+
+      // Format the timestamp
+      const gameDate = new Date(game.created_at || game.ended_at);
+      timeCell.textContent = gameDate.toLocaleString();
     }
   });
 }
@@ -626,28 +639,28 @@ const showLoginUI = () => {
 const loginUser = async (username, password) => {
   try {
     const response = await fetch(`${API_URL}/user/login`, {
-      method: 'POST',
+      method: "POST",
       headers: {
-        'Content-Type': 'application/json'
+        "Content-Type": "application/json",
       },
-      body: JSON.stringify({ username, password })
+      body: JSON.stringify({ username, password }),
     });
-    
+
     const data = await response.json();
-    
+
     if (response.ok) {
       // Store user info and token
       user = data.user;
       authToken = data.token;
-      localStorage.setItem('user', JSON.stringify(user));
-      localStorage.setItem('token', data.token);
-      
+      localStorage.setItem("user", JSON.stringify(user));
+      localStorage.setItem("token", data.token);
+
       // Remove auth UI
-      const authContainer = document.getElementById('auth-container');
+      const authContainer = document.getElementById("auth-container");
       if (authContainer) {
         document.body.removeChild(authContainer);
       }
-      
+
       // Update UI and fetch game state
       coins = user.coins;
       updateUIForLoggedInUser(user);
@@ -656,8 +669,8 @@ const loginUser = async (username, password) => {
       alert(`Login failed: ${data.error}`);
     }
   } catch (error) {
-    console.error('Login error:', error);
-    alert('An error occurred during login.');
+    console.error("Login error:", error);
+    alert("An error occurred during login.");
   }
 };
 
@@ -665,50 +678,52 @@ const loginUser = async (username, password) => {
 const registerUser = async (username, email, password) => {
   try {
     const response = await fetch(`${API_URL}/user/register`, {
-      method: 'POST',
+      method: "POST",
       headers: {
-        'Content-Type': 'application/json'
+        "Content-Type": "application/json",
       },
-      body: JSON.stringify({ username, email, password })
+      body: JSON.stringify({ username, email, password }),
     });
-    
+
     const data = await response.json();
-    
+
     if (response.ok) {
-      alert('Registration successful! Please log in.');
+      alert("Registration successful! Please log in.");
       // Switch to login tab
-      document.getElementById('login-tab').click();
-      document.getElementById('login-username').value = username;
+      document.getElementById("login-tab").click();
+      document.getElementById("login-username").value = username;
     } else {
       alert(`Registration failed: ${data.error}`);
     }
   } catch (error) {
-    console.error('Registration error:', error);
-    alert('An error occurred during registration.');
+    console.error("Registration error:", error);
+    alert("An error occurred during registration.");
   }
 };
 
 // Update UI for logged-in user
 const updateUIForLoggedInUser = (userData) => {
   // Add username display and logout button
-  const container = document.querySelector('.container');
-  
-  if (!document.getElementById('user-info')) {
-    const userInfo = document.createElement('div');
-    userInfo.id = 'user-info';
-    userInfo.classList.add('user-info');
+  const container = document.querySelector(".container");
+
+  if (!document.getElementById("user-info")) {
+    const userInfo = document.createElement("div");
+    userInfo.id = "user-info";
+    userInfo.classList.add("user-info");
     userInfo.innerHTML = `
       <span>Welcome, <strong id="username-display">${userData.username}</strong></span>
       <button id="logout-button">Logout</button>
     `;
     container.insertBefore(userInfo, container.firstChild);
-    
+
     // Add logout functionality
-    document.getElementById('logout-button').addEventListener('click', logoutUser);
+    document
+      .getElementById("logout-button")
+      .addEventListener("click", logoutUser);
   } else {
-    document.getElementById('username-display').textContent = userData.username;
+    document.getElementById("username-display").textContent = userData.username;
   }
-  
+
   // Update coins display
   coins = userData.coins;
   updateCoinsDisplay();
@@ -717,46 +732,46 @@ const updateUIForLoggedInUser = (userData) => {
 // Fetch user data
 const fetchUserData = async () => {
   if (!user || !authToken) return;
-  
+
   try {
     const response = await fetch(`${API_URL}/user/profile`, {
       headers: {
-        'Authorization': `Bearer ${authToken}`
-      }
+        Authorization: `Bearer ${authToken}`,
+      },
     });
-    
+
     const data = await response.json();
-    
+
     if (response.ok) {
       user = data.user;
       coins = user.coins;
-      localStorage.setItem('user', JSON.stringify(user));
+      localStorage.setItem("user", JSON.stringify(user));
       updateCoinsDisplay();
     } else {
-      console.error('Failed to fetch user data:', data.error);
+      console.error("Failed to fetch user data:", data.error);
     }
   } catch (error) {
-    console.error('Error fetching user data:', error);
+    console.error("Error fetching user data:", error);
   }
 };
 
 // Logout user
 const logoutUser = () => {
-  localStorage.removeItem('user');
-  localStorage.removeItem('token');
+  localStorage.removeItem("user");
+  localStorage.removeItem("token");
   user = null;
   authToken = null;
-  
+
   // Remove user info from UI
-  const userInfo = document.getElementById('user-info');
+  const userInfo = document.getElementById("user-info");
   if (userInfo) {
     userInfo.parentNode.removeChild(userInfo);
   }
-  
+
   // Reset coins to default
   coins = 10000;
   updateCoinsDisplay();
-  
+
   // Show login UI
   showLoginUI();
 };
@@ -765,7 +780,7 @@ const logoutUser = () => {
 function showLeaderboard() {
   const leaderboardModal = document.getElementById("leaderboard-modal");
   leaderboardModal.style.display = "block";
-  
+
   // Fetch leaderboard data
   fetchLeaderboard();
 }
@@ -781,48 +796,75 @@ async function fetchLeaderboard() {
   try {
     const response = await fetch(`${API_URL}/leaderboard`);
     const data = await response.json();
-    
+
     if (response.ok) {
       updateLeaderboardUI(data);
     } else {
-      console.error('Error fetching leaderboard:', data.error);
+      console.error("Error fetching leaderboard:", data.error);
     }
   } catch (error) {
-    console.error('Error:', error);
+    console.error("Error:", error);
   }
 }
 
 // Update the leaderboard UI with data
 function updateLeaderboardUI(leaderboardData) {
   const leaderboardBody = document.getElementById("leaderboard-body");
-  leaderboardBody.innerHTML = '';
-  
+  leaderboardBody.innerHTML = "";
+
   leaderboardData.forEach((player, index) => {
-    const row = document.createElement('tr');
-    
+    const row = document.createElement("tr");
+
     // Create rank cell
-    const rankCell = document.createElement('td');
+    const rankCell = document.createElement("td");
     rankCell.textContent = index + 1;
     row.appendChild(rankCell);
-    
+
     // Create username cell
-    const usernameCell = document.createElement('td');
+    const usernameCell = document.createElement("td");
     usernameCell.textContent = player.username;
     row.appendChild(usernameCell);
-    
+
     // Create coins cell
-    const coinsCell = document.createElement('td');
+    const coinsCell = document.createElement("td");
     coinsCell.textContent = player.coins;
     row.appendChild(coinsCell);
-    
+
     // Create wins cell (if available)
-    const winsCell = document.createElement('td');
-    winsCell.textContent = player.wins || '0';
+    const winsCell = document.createElement("td");
+    winsCell.textContent = player.wins || "0";
     row.appendChild(winsCell);
-    
+
     leaderboardBody.appendChild(row);
   });
 }
+
+// Animal definitions matching single player
+const animals = [
+  { name: "turtle", displayName: "🐢乌龟", prob: 19.4, return: 5 },
+  { name: "hedgehog", displayName: "🦔刺猬", prob: 19.4, return: 5 },
+  { name: "raccoon", displayName: "🦝浣熊", prob: 19.4, return: 5 },
+  { name: "elephant", displayName: "🐘小象", prob: 19.4, return: 5 },
+  { name: "cat", displayName: "😼猫咪", prob: 9.7, return: 10 },
+  { name: "fox", displayName: "🦊狐狸", prob: 6.5, return: 15 },
+  { name: "pig", displayName: "🐖猪猪", prob: 3.9, return: 25 },
+  { name: "lion", displayName: "🦁狮子", prob: 2.2, return: 45 },
+];
+
+const specials = [
+  {
+    name: "vegetarian_festival",
+    displayName: "🐢🦔🦝🐘",
+    prob: 0.05,
+    return: 20,
+  },
+  {
+    name: "carnivorous_festival",
+    displayName: "😼🦊🐖🦁",
+    prob: 0.05,
+    return: 95,
+  },
+];
 
 // Initialize the game when page loads
 document.addEventListener('DOMContentLoaded', () => {
