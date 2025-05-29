@@ -31,6 +31,7 @@ let user = null;
 let authToken = null;
 let countdown = 30;
 let isCountdownActive = false;
+let countdownInterval = null;
 
 // Authentication state
 const loadAuthState = () => {
@@ -112,7 +113,29 @@ const fetchGameState = async () => {
     if (response.ok) {
       if (data.game) {
         currentGameId = data.game.id;
-        countdown = data.countdown || 30;
+
+        // Stop any existing countdown before setting new values
+        stopCountdown();
+
+        // Calculate remaining time from server data
+        const now = new Date();
+        const endTime = new Date(data.game.end_time);
+        const timeLeftSeconds = Math.max(0, Math.floor((endTime - now) / 1000));
+
+        console.log(
+          `Game ${data.game.id}: Server time left: ${timeLeftSeconds}s, End time: ${data.game.end_time}`
+        );
+
+        // Use calculated time, but ensure we have at least 1 second for new games
+        countdown = Math.max(timeLeftSeconds, 0);
+
+        // If countdown is 0 or very small, it means the game just started or is about to start
+        // For very new games (less than 25 seconds left), reset to full countdown
+        if (countdown <= 5 || countdown > 30) {
+          console.log(`Resetting countdown from ${countdown} to 30 seconds`);
+          countdown = 30;
+        }
+
         updateCountdownDisplay();
 
         // If user is logged in, update coins
@@ -131,6 +154,7 @@ const fetchGameState = async () => {
           displayResult(data.result);
         } else {
           // Start local countdown if not ended
+          console.log(`Starting countdown with ${countdown} seconds`);
           startCountdown();
         }
       } else {
@@ -141,9 +165,19 @@ const fetchGameState = async () => {
             method: "POST",
           });
           if (createResponse.ok) {
-            console.log("Created new game, refetching state...");
-            // Wait a moment then try fetching state again
-            setTimeout(() => fetchGameState(), 1000);
+            const createData = await createResponse.json();
+            console.log("Created new game:", createData.game?.id);
+
+            // Wait a bit more for the game to be properly created
+            setTimeout(() => {
+              console.log("Refetching state after game creation...");
+              fetchGameState();
+            }, 2000);
+          } else {
+            console.error(
+              "Failed to create game:",
+              await createResponse.text()
+            );
           }
         } catch (createError) {
           console.error("Failed to create new game:", createError);
@@ -217,6 +251,10 @@ const handleGameEvent = (event) => {
       startCountdown();
       break;
     case "game_end":
+      if (countdownInterval) {
+        clearInterval(countdownInterval);
+        countdownInterval = null;
+      }
       isCountdownActive = false;
       displayResult(event.data.result);
       // Refresh user data after game end to get updated coins
@@ -362,18 +400,34 @@ const selectAnimal = (animal) => {
 
 // Start countdown locally
 const startCountdown = () => {
-  if (isCountdownActive) return;
+  // Clear any existing countdown interval
+  if (countdownInterval) {
+    clearInterval(countdownInterval);
+    countdownInterval = null;
+  }
+
+  // Reset the countdown state
   isCountdownActive = true;
+  console.log(`Starting countdown from ${countdown} seconds`);
 
   updateCountdownDisplay();
 
-  const countdownInterval = setInterval(() => {
+  countdownInterval = setInterval(() => {
     countdown--;
     updateCountdownDisplay();
+    console.log(`Countdown: ${countdown}s`);
 
-    if (countdown <= 0 || !isCountdownActive) {
+    if (countdown <= 0) {
+      console.log("Countdown reached 0, stopping interval");
       clearInterval(countdownInterval);
+      countdownInterval = null;
       isCountdownActive = false;
+
+      // When countdown reaches 0, fetch new game state to get the next game
+      setTimeout(() => {
+        console.log("Fetching new game state after countdown ended");
+        fetchGameState();
+      }, 2000);
     }
   }, 1000);
 };
@@ -381,6 +435,15 @@ const startCountdown = () => {
 // Update countdown display
 const updateCountdownDisplay = () => {
   document.getElementById("countdown").textContent = countdown;
+};
+
+// Stop countdown
+const stopCountdown = () => {
+  if (countdownInterval) {
+    clearInterval(countdownInterval);
+    countdownInterval = null;
+  }
+  isCountdownActive = false;
 };
 
 // Display game result
