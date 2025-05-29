@@ -135,14 +135,6 @@
       <button id="close-leaderboard" class="popup-modal-close-button">X Close</button>
     </div>
   </div>
-  <!-- Load clientCrypto first, then script-multiplayer.js -->
-  <script>
-    // Make sure clientCrypto is fully initialized before loading the main script
-    if (typeof window.clientCrypto === 'undefined') {
-      console.error('clientCrypto is not defined! Loading it now...');
-      document.write('<script src="js/clientCrypto.js"><\/script>');
-    }
-  </script>
   <script src="js/script-multiplayer.js"></script>
 </body>
 
