@@ -23,7 +23,7 @@ const authenticateToken = (req, res, next) => {
 router.post('/register', async (req, res) => {
   try {
     const { email, password, username } = req.body;
-    
+
     // Check if user exists
     const { data: existingUser } = await supabase
       .from('users')
@@ -42,6 +42,11 @@ router.post('/register', async (req, res) => {
     });
 
     if (authError) throw authError;
+
+    if (!user || !user.id) {
+      console.error("Supabase signUp response:", { user, authError });
+      return res.status(500).json({ error: "Failed to register user" });
+    }
 
     // Create user profile in our custom users table
     const { data, error } = await supabase
