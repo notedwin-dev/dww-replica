@@ -116,6 +116,11 @@ const saveGuestStats = () => {
   localStorage.setItem("lastGuestId", guestId);
 };
 
+// Reset guest stats from localStorage
+const resetGuestStats = () => {
+  localStorage.removeItem("guestBets");
+}
+
 // Load guest stats from localStorage or from previous guest data
 const loadGuestStats = (previousGuestData = null) => {
   // Try to load from current session storage first
@@ -695,6 +700,11 @@ const resetBets = () => {
   document
     .querySelectorAll(".bet-options button")
     .forEach((button) => button.classList.remove("selected"));
+
+  // Reset guest bets in localStorage
+  if (isAnonymousUser) {
+    resetGuestStats();
+  }
 };
 
 // Toggle visibility of the history table
