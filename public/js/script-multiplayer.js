@@ -1163,21 +1163,7 @@ const loginAnonymousUser = async () => {
 // Logout anonymous user
 const logoutAnonymousUser = async () => {
   // Before logging out, save guest data with a unique guest ID if it doesn't exist
-  const guestId =
-    localStorage.getItem("guestId") ||
-    `guest_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
-
-  // Save all guest data to localStorage
-  const guestData = {
-    id: guestId,
-    coins: coins,
-    bets: bets,
-    lastSeen: new Date().toISOString(),
-  };
-
-  // Store under a specific key for this guest ID
-  localStorage.setItem(`guestData_${guestId}`, JSON.stringify(guestData));
-  localStorage.setItem("lastGuestId", guestId);
+  const guestId = localStorage.getItem("guestId");
 
   // Now proceed with actual logout
   if (supabase) {
@@ -1189,6 +1175,8 @@ const logoutAnonymousUser = async () => {
   // Remove session data but keep the guest ID reference
   localStorage.removeItem("anonymousUser");
   localStorage.removeItem("supabaseSession");
+  localStorage.removeItem(`guestData_${guestId}`);
+  localStorage.removeItem("lastGuestId");
   localStorage.removeItem("guestId");
   localStorage.removeItem("guestBets");
   localStorage.removeItem("guestCoins");
