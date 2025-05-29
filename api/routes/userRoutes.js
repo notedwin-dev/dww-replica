@@ -2,25 +2,26 @@ const express = require('express');
 const router = express.Router();
 const supabase = require('../../config/supabaseClient');
 const jwt = require('jsonwebtoken');
+const bcrypt = require("bcrypt");
 
 // Middleware to verify JWT tokens
 const authenticateToken = (req, res, next) => {
-  const authHeader = req.headers['authorization'];
-  const token = authHeader && authHeader.split(' ')[1];
-  
-  if (!token) return res.status(401).json({ error: 'Access denied' });
+  const authHeader = req.headers["authorization"];
+  const token = authHeader && authHeader.split(" ")[1];
+
+  if (!token) return res.status(401).json({ error: "Access denied" });
 
   try {
     const verified = jwt.verify(token, process.env.JWT_SECRET);
     req.user = verified;
     next();
   } catch (error) {
-    res.status(400).json({ error: 'Invalid token' });
+    res.status(400).json({ error: "Invalid token" });
   }
 };
 
 // Register new user
-router.post('/register', async (req, res) => {
+router.post("/register", async (req, res) => {
   try {
     const { email, password, username } = req.body;
 
@@ -35,43 +36,33 @@ router.post('/register', async (req, res) => {
       return res.status(400).json({ error: "User already exists" });
     }
 
-    // Register user with Supabase auth
-    const { user, error: authError } = await supabase.auth.signUp({
-      email,
-      password,
-    });
-
-    console.log("Supabase signUp response:", { user, authError }); // Log response for debugging
-
-    if (authError) throw authError;
-
-    if (!user || !user.id) {
-      console.error("Supabase signUp response:", { user, authError });
-      return res.status(500).json({ error: "Failed to register user" });
-    }
+    // Hash the password
+    const hashedPassword = await bcrypt.hash(password, 10);
 
     // Create user profile in our custom users table
-    const { data, error } = await supabase.from("users").insert({
-      id: user.id,
+    const insertResponse = await supabase.from("users").insert({
       email,
       username,
+      password: hashedPassword,
       coins: 10000, // Starting coins
       created_at: new Date(),
     });
 
-    if (error) throw error;
+    if (insertResponse.error) throw insertResponse.error;
+
+    const newUser = insertResponse.data[0];
 
     // Create JWT token
-    const token = jwt.sign({ id: user.id }, process.env.JWT_SECRET);
+    const token = jwt.sign({ id: newUser.id }, process.env.JWT_SECRET);
 
     res.status(201).json({
       message: "User registered successfully",
       token,
       user: {
-        id: user.id,
-        email,
-        username,
-        coins: 10000,
+        id: newUser.id,
+        email: newUser.email,
+        username: newUser.username,
+        coins: newUser.coins,
       },
     });
   } catch (error) {
@@ -80,37 +71,43 @@ router.post('/register', async (req, res) => {
 });
 
 // Login user
-router.post('/login', async (req, res) => {
+router.post("/login", async (req, res) => {
   try {
     const { email, password } = req.body;
-    
-    // Sign in with Supabase auth
-    const { user, error: authError } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
-
-    if (authError) throw authError;
 
     // Get user details from our custom table
-    const { data: userData, error } = await supabase
-      .from('users')
-      .select('*')
-      .eq('id', user.id)
+    const { data: user, error } = await supabase
+      .from("users")
+      .select("*")
+      .eq("email", email)
       .single();
 
-    if (error) throw error;
+    if (error || !user) {
+      return res.status(401).json({ error: "Invalid credentials" });
+    }
+
+    // Verify password
+    const isPasswordValid = await bcrypt.compare(password, user.password);
+
+    if (!isPasswordValid) {
+      return res.status(401).json({ error: "Invalid credentials" });
+    }
 
     // Create JWT token
     const token = jwt.sign({ id: user.id }, process.env.JWT_SECRET);
 
     res.status(200).json({
-      message: 'Login successful',
+      message: "Login successful",
       token,
-      user: userData
+      user: {
+        id: user.id,
+        email: user.email,
+        username: user.username,
+        coins: user.coins,
+      },
     });
   } catch (error) {
-    res.status(401).json({ error: 'Invalid credentials' });
+    res.status(500).json({ error: error.message });
   }
 });
 
