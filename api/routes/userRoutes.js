@@ -128,7 +128,10 @@ router.post("/login", async (req, res) => {
     }
 
     // Sign in with Supabase auth using email
-    const { user, error: authError } = await supabase.auth.signInWithPassword({
+    const {
+      data: { user },
+      error: authError,
+    } = await supabase.auth.signInWithPassword({
       email,
       password,
     });
