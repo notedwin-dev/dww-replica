@@ -12,13 +12,28 @@
 </head>
 
 <body>
-  <div class="container">
-    <!-- Mode Navigation -->
-    <div class="mode-navigation">
-      <button class="mode-btn" id="single-mode-btn" onclick="switchToSinglePlayer()">Single Player</button>
-      <button class="mode-btn active" id="multi-mode-btn">Multiplayer</button>
+  <!-- Navigation Bar -->
+  <nav class="navbar">
+    <div class="navbar-left">
+      <div class="mode-navigation">
+        <button class="mode-btn" id="single-mode-btn" onclick="switchToSinglePlayer()">Single Player</button>
+        <button class="mode-btn active" id="multi-mode-btn">Multiplayer</button>
+      </div>
     </div>
-    
+    <div class="navbar-right" id="auth-nav-buttons">
+      <div class="user-info" id="user-info-nav" style="display: none;">
+        <span id="welcome-message">Welcome, Guest</span>
+        <button id="logout-btn">Logout</button>
+      </div>
+      <div class="auth-buttons" id="auth-buttons-nav">
+        <button id="login-nav-btn">Login</button>
+        <button id="signup-nav-btn">Signup</button>
+        <button id="guest-nav-btn">Play as Guest</button>
+      </div>
+    </div>
+    </nav>
+
+  <div class="container">
     <h1>大胃王 (replica) - Multiplayer</h1>
     <!-- Online player count indicator -->
     <div class="online-players">

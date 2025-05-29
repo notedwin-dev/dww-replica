@@ -1,6 +1,94 @@
 /* filepath: d:\Programming\dww-replica\styles-multiplayer.css */
 /* Additional styles for multiplayer version - extends base styles.css */
 
+html, body {
+  margin: 0;
+  padding: 0;
+  overflow-x: hidden; /* Prevent horizontal scroll */
+}
+
+body {
+  /* Override the styles from the base styles.css */
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start; /* Override center alignment from base styles */
+  align-items: stretch; /* Override center alignment from base styles */
+  min-height: 100vh;
+  margin: 0;
+}
+
+/* Navbar styles */
+.navbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 20px;
+    background-color: #2c3e50;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+    color: white;
+    position: sticky;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 100;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.navbar-left .mode-navigation,
+.navbar .mode-navigation {
+  margin-bottom: 0; /* Override margin from styles.css */
+}
+
+.navbar-center {
+    display: flex;
+    align-items: center;
+}
+
+.navbar-right {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.auth-buttons {
+    display: flex;
+    gap: 10px;
+}
+
+.auth-buttons button, .user-info button {
+    background-color: #e74c3c;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    padding: 8px 15px;
+    cursor: pointer;
+    font-size: 0.9em;
+    transition: background-color 0.3s;
+}
+
+#login-nav-btn, #guest-nav-btn {
+    background-color: #3498db;
+}
+
+.auth-buttons button:hover, .user-info button:hover {
+    background-color: #c0392b;
+}
+
+#login-nav-btn:hover, #guest-nav-btn:hover {
+    background-color: #2980b9;
+}
+
+.user-info {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+}
+
+#welcome-message {
+    font-weight: bold;
+}
+
 /* User authentication styles */
 .auth-container {
     position: fixed;
@@ -213,6 +301,8 @@
   padding: 20px;
   border-radius: 10px;
   box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+  margin: 0 auto;
+  margin-top: 20px;
 }
 
 /* Add mobile responsiveness */

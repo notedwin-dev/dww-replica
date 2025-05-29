@@ -10,6 +10,7 @@ function switchToSinglePlayer() {
 
 // We'll set these after fetching from the server
 let supabase = null;
+let isAnonymousUser = false; // Flag for anonymous users
 
 // Game state variables
 let coins = 10000;
@@ -37,14 +38,18 @@ let countdownInterval = null;
 const loadAuthState = () => {
   const savedUser = localStorage.getItem("user");
   const savedToken = localStorage.getItem("token");
+  const anonymousUser = localStorage.getItem("anonymousUser");
 
   if (savedUser && savedToken) {
     user = JSON.parse(savedUser);
     authToken = savedToken;
     updateUIForLoggedInUser(user);
+  } else if (anonymousUser && anonymousUser === "true") {
+    // Load anonymous user session
+    loginAnonymousUser();
   } else if (!document.getElementById("auth-container")) {
-    // Only show login UI if it's not already shown and no guest session in progress
-    showLoginUI();
+    // Do not automatically show login UI - use navbar buttons instead
+    updateNavbarForGuest();
   }
 };
 
@@ -643,28 +648,42 @@ function updateGameHistoryTable(gameHistory) {
 
 // Authentication functions
 // Show login/register UI
-const showLoginUI = () => {
+const showLoginUI = (activeTab = "login") => {
+  // Remove any existing auth container
+  const existingAuthContainer = document.getElementById("auth-container");
+  if (existingAuthContainer) {
+    document.body.removeChild(existingAuthContainer);
+  }
+
   const authContainer = document.createElement("div");
   authContainer.id = "auth-container";
   authContainer.classList.add("auth-container");
 
   authContainer.innerHTML = `
     <div class="auth-tabs">
-      <button id="login-tab" class="active">Login</button>
-      <button id="register-tab">Register</button>
+      <button id="login-tab" ${
+        activeTab === "login" ? 'class="active"' : ""
+      }>Login</button>
+      <button id="register-tab" ${
+        activeTab === "register" ? 'class="active"' : ""
+      }>Register</button>
     </div>
-    <div id="login-form" class="auth-form">
+    <div id="login-form" class="auth-form" ${
+      activeTab === "login" ? "" : 'style="display: none;"'
+    }>
       <input type="text" id="login-username" placeholder="Username or Email" />
       <input type="password" id="login-password" placeholder="Password" />
       <button id="login-button">Login</button>
     </div>
-    <div id="register-form" class="auth-form" style="display: none;">
+    <div id="register-form" class="auth-form" ${
+      activeTab === "register" ? "" : 'style="display: none;"'
+    }>
       <input type="text" id="register-username" placeholder="Username" />
       <input type="email" id="register-email" placeholder="Email" />
       <input type="password" id="register-password" placeholder="Password" />
       <button id="register-button">Register</button>
     </div>
-    <button id="play-as-guest">Play as Guest</button>
+    <button id="close-auth">Cancel</button>
   `;
 
   document.body.appendChild(authContainer);
@@ -683,6 +702,7 @@ const showLoginUI = () => {
     document.getElementById("register-tab").classList.add("active");
     document.getElementById("login-tab").classList.remove("active");
   });
+
   document.getElementById("login-button").addEventListener("click", () => {
     const usernameOrEmail = document.getElementById("login-username").value;
     const password = document.getElementById("login-password").value;
@@ -695,15 +715,9 @@ const showLoginUI = () => {
     const password = document.getElementById("register-password").value;
     registerUser(username, email, password);
   });
-  document.getElementById("play-as-guest").addEventListener("click", () => {
-    // Remove auth UI and start game as guest
+
+  document.getElementById("close-auth").addEventListener("click", () => {
     document.body.removeChild(authContainer);
-    // Don't call initializeGame() again, just continue with the current game
-    // Set guest state explicitly
-    user = null;
-    authToken = null;
-    coins = 10000;
-    updateCoinsDisplay();
   });
 };
 
@@ -775,26 +789,8 @@ const registerUser = async (username, email, password) => {
 
 // Update UI for logged-in user
 const updateUIForLoggedInUser = (userData) => {
-  // Add username display and logout button
-  const container = document.querySelector(".container");
-
-  if (!document.getElementById("user-info")) {
-    const userInfo = document.createElement("div");
-    userInfo.id = "user-info";
-    userInfo.classList.add("user-info");
-    userInfo.innerHTML = `
-      <span>Welcome, <strong id="username-display">${userData.username}</strong></span>
-      <button id="logout-button">Logout</button>
-    `;
-    container.insertBefore(userInfo, container.firstChild);
-
-    // Add logout functionality
-    document
-      .getElementById("logout-button")
-      .addEventListener("click", logoutUser);
-  } else {
-    document.getElementById("username-display").textContent = userData.username;
-  }
+  // Update the navbar
+  updateNavbarForLoggedInUser(userData);
 
   // Update coins display
   coins = userData.coins;
@@ -834,18 +830,114 @@ const logoutUser = () => {
   user = null;
   authToken = null;
 
-  // Remove user info from UI
-  const userInfo = document.getElementById("user-info");
-  if (userInfo) {
-    userInfo.parentNode.removeChild(userInfo);
-  }
-
   // Reset coins to default
   coins = 10000;
   updateCoinsDisplay();
 
-  // Show login UI
-  showLoginUI();
+  // Update navbar
+  updateNavbarForGuest();
+};
+
+// Login as anonymous user using Supabase
+const loginAnonymousUser = async () => {
+  try {
+    // Make sure Supabase client is initialized
+    if (!supabase) {
+      await initializeSupabaseClient();
+    }
+
+    // Try to restore existing anonymous session
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+
+    if (session) {
+      console.log("Restored anonymous session");
+      isAnonymousUser = true;
+      updateNavbarForAnonymousUser();
+      loadGuestStats();
+    } else {
+      // Sign in anonymously
+      const { data, error } = await supabase.auth.signInAnonymously();
+
+      if (error) throw error;
+
+      console.log("Created new anonymous session");
+      isAnonymousUser = true;
+      localStorage.setItem("anonymousUser", "true");
+      updateNavbarForAnonymousUser();
+      loadGuestStats();
+    }
+  } catch (error) {
+    console.error("Anonymous login error:", error);
+    alert("Could not create guest session. Playing as local guest instead.");
+    // Fallback to regular guest mode
+    updateNavbarForGuest();
+    loadGuestStats();
+  }
+};
+
+// Logout anonymous user
+const logoutAnonymousUser = async () => {
+  if (supabase) {
+    await supabase.auth.signOut();
+  }
+
+  isAnonymousUser = false;
+  localStorage.removeItem("anonymousUser");
+  localStorage.removeItem("guestBets");
+  localStorage.removeItem("guestCoins");
+
+  // Reset to default state
+  coins = 10000;
+  updateCoinsDisplay();
+  resetBets();
+  updateNavbarForGuest();
+};
+
+// Update navbar for logged in user
+const updateNavbarForLoggedInUser = (userData) => {
+  // Hide auth buttons
+  document.getElementById("auth-buttons-nav").style.display = "none";
+
+  // Show user info
+  document.getElementById("user-info-nav").style.display = "flex";
+  document.getElementById(
+    "welcome-message"
+  ).textContent = `Welcome, ${userData.username}`;
+
+  // Add logout functionality if not already set
+  if (!document.getElementById("logout-btn").hasClickListener) {
+    document.getElementById("logout-btn").addEventListener("click", logoutUser);
+    document.getElementById("logout-btn").hasClickListener = true;
+  }
+};
+
+// Update navbar for anonymous user
+const updateNavbarForAnonymousUser = () => {
+  // Hide auth buttons
+  document.getElementById("auth-buttons-nav").style.display = "none";
+
+  // Show user info with Guest username
+  document.getElementById("user-info-nav").style.display = "flex";
+  document.getElementById("welcome-message").textContent = "Welcome, Guest";
+
+  // Setup logout functionality
+  if (!document.getElementById("logout-btn").hasClickListener) {
+    document
+      .getElementById("logout-btn")
+      .addEventListener("click", logoutAnonymousUser);
+    document.getElementById("logout-btn").hasClickListener = true;
+  }
+};
+
+// Update navbar for guest/not logged in
+const updateNavbarForGuest = () => {
+  // Show auth buttons
+  document.getElementById("auth-buttons-nav").style.display = "flex";
+
+  // Hide user info
+  document.getElementById("user-info-nav").style.display = "none";
 };
 
 // Show the leaderboard
@@ -999,6 +1091,10 @@ document.addEventListener("DOMContentLoaded", () => {
     closeLeaderboardButton.addEventListener("click", hideLeaderboard);
   }
 
+  // Initialize navbar
+  initializeNavbar();
+
+  // Initialize game
   initializeGame();
 
   // Start heartbeat for serverless compatibility
@@ -1042,3 +1138,26 @@ function startHeartbeat() {
   // Initial heartbeat call
   fetch(`${API_URL}/game/heartbeat`).catch(console.error);
 }
+
+// Initialize the navbar buttons
+const initializeNavbar = () => {
+  // Login button
+  document.getElementById("login-nav-btn").addEventListener("click", () => {
+    showLoginUI("login");
+  });
+
+  // Signup button
+  document.getElementById("signup-nav-btn").addEventListener("click", () => {
+    showLoginUI("register");
+  });
+
+  // Guest button
+  document.getElementById("guest-nav-btn").addEventListener("click", () => {
+    loginAnonymousUser();
+  });
+};
+
+// Call navbar initialization on DOMContentLoaded
+document.addEventListener("DOMContentLoaded", () => {
+  initializeNavbar();
+});
