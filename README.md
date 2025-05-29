@@ -37,7 +37,7 @@ The multiplayer version requires server setup:
    ```
    npm start
    ```
-6. Open `index-multiplayer.html` in your browser or navigate to `http://localhost:3000` if deployed.
+6. Open `multiplayer.html` in your browser or navigate to `http://localhost:3000` if deployed.
 
 ## Game Rules
 
