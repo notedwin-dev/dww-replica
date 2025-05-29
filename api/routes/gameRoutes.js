@@ -389,7 +389,7 @@ async function endGame(gameId) {
         result: result.name,
         result_display_name: result.displayName,
         result_return_rate: result.return,
-        ended_at: new Date(),
+        end_time: new Date(),
       })
       .eq("id", gameId);
 

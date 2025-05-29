@@ -576,7 +576,7 @@ function updateGameHistoryTable(gameHistory) {
       winningsCell.textContent = "0";
 
       // Format the timestamp
-      const gameDate = new Date(game.created_at || game.ended_at);
+      const gameDate = new Date(game.end_time);
       timeCell.textContent = gameDate.toLocaleString();
     }
   });
