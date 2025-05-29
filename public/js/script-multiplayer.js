@@ -48,12 +48,40 @@ const loadAuthState = () => {
   }
 };
 
+// Save guest stats to localStorage
+const saveGuestStats = () => {
+  localStorage.setItem("guestBets", JSON.stringify(bets));
+  localStorage.setItem("guestCoins", coins);
+};
+
+// Load guest stats from localStorage
+const loadGuestStats = () => {
+  const savedBets = localStorage.getItem("guestBets");
+  const savedCoins = localStorage.getItem("guestCoins");
+
+  if (savedBets) {
+    bets = JSON.parse(savedBets);
+  }
+
+  if (savedCoins) {
+    coins = parseInt(savedCoins, 10);
+  }
+
+  updateCoinsDisplay();
+  resetBetDisplays();
+};
+
 // Initialize UI states
 const initializeGame = async () => {
   // First, fetch Supabase configuration
   await initializeSupabaseClient();
 
   loadAuthState();
+
+  if (!user) {
+    loadGuestStats();
+  }
+
   await fetchGameState();
 
   // Load synchronized past results for all players
@@ -337,6 +365,9 @@ const placeBet = async (animal) => {
 const updateLocalBet = (animal, amount) => {
   bets[animal] += amount;
   coins -= amount;
+
+  // Save updated stats to localStorage
+  saveGuestStats();
 
   // Update UI
   document.getElementById(`bet-${animal}`).textContent = bets[animal];
@@ -680,7 +711,7 @@ const showLoginUI = () => {
 // Login user
 const loginUser = async (username, password) => {
   try {
-    const response = await fetch(`${API_URL}/user/login`, {
+    const response = await fetch(`${API_URL}/users/login`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -719,7 +750,7 @@ const loginUser = async (username, password) => {
 // Register user
 const registerUser = async (username, email, password) => {
   try {
-    const response = await fetch(`${API_URL}/user/register`, {
+    const response = await fetch(`${API_URL}/users/register`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
