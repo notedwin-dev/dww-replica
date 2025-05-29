@@ -1,3 +1,8 @@
+// Mode switching functions
+function switchToMultiplayer() {
+  window.location.href = 'multiplayer.html';
+}
+
 let coins = 10000;
 let betAmount = 0;
 let selectedAnimal = "";

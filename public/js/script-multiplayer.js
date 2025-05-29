@@ -3,6 +3,11 @@ const API_URL = window.location.hostname === 'localhost'
   ? 'http://localhost:3000/api'
   : '/api';
 
+// Mode switching functions
+function switchToSinglePlayer() {
+  window.location.href = 'index.html';
+}
+
 // We'll set these after fetching from the server
 let supabase = null;
 

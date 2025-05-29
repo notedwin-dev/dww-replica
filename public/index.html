@@ -4,13 +4,20 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>大胃王 (replica)</title>
+    <title>大胃王 (replica) - Single Player</title>
+    <link rel="icon" type="image/x-icon" href="favicon.ico">
     <link rel="stylesheet" href="styles/styles.css">
 </head>
 
 <body>
     <div class="container">
-        <h1>大胃王 (replica)</h1>
+        <!-- Mode Navigation -->
+        <div class="mode-navigation">
+            <button class="mode-btn active" id="single-mode-btn">Single Player</button>
+            <button class="mode-btn" id="multi-mode-btn" onclick="switchToMultiplayer()">Multiplayer</button>
+        </div>
+        
+        <h1>大胃王 (replica) - Single Player</h1>
 
         <div class="countdown">
             <p>Time Left: <span id="countdown"></span> seconds</p>
