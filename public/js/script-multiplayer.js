@@ -807,7 +807,7 @@ const fetchUserData = async () => {
   if (!user || !authToken) return;
 
   try {
-    const response = await fetch(`${API_URL}/user/profile`, {
+    const response = await fetch(`${API_URL}/users/profile`, {
       headers: {
         Authorization: `Bearer ${authToken}`,
       },
