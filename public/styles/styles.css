@@ -227,7 +227,7 @@ body {
 }
 
 .popup-modal table {
-  width: 100%; /* Full width of the container */
+  width: 50vw; /* Full width of the container */
   height: auto; /* Height adjusts to content with a maximum limit */
   max-height: 700px; /* Maximum height with scrolling */
   overflow-x: auto; /* Enables horizontal scrolling */
