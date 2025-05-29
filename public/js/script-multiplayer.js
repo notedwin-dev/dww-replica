@@ -654,7 +654,7 @@ const showLoginUI = () => {
       <button id="register-tab">Register</button>
     </div>
     <div id="login-form" class="auth-form">
-      <input type="text" id="login-username" placeholder="Username" />
+      <input type="text" id="login-username" placeholder="Username or Email" />
       <input type="password" id="login-password" placeholder="Password" />
       <button id="login-button">Login</button>
     </div>
@@ -683,11 +683,10 @@ const showLoginUI = () => {
     document.getElementById("register-tab").classList.add("active");
     document.getElementById("login-tab").classList.remove("active");
   });
-
   document.getElementById("login-button").addEventListener("click", () => {
-    const username = document.getElementById("login-username").value;
+    const usernameOrEmail = document.getElementById("login-username").value;
     const password = document.getElementById("login-password").value;
-    loginUser(username, password);
+    loginUser(usernameOrEmail, password);
   });
 
   document.getElementById("register-button").addEventListener("click", () => {
@@ -709,14 +708,14 @@ const showLoginUI = () => {
 };
 
 // Login user
-const loginUser = async (username, password) => {
+const loginUser = async (usernameOrEmail, password) => {
   try {
     const response = await fetch(`${API_URL}/users/login`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({ username, password }),
+      body: JSON.stringify({ usernameOrEmail, password }),
     });
 
     const data = await response.json();

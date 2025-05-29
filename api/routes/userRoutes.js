@@ -89,9 +89,27 @@ router.post("/register", async (req, res) => {
 // Login user
 router.post("/login", async (req, res) => {
   try {
-    const { email, password } = req.body;
+    const { usernameOrEmail, password } = req.body;
 
-    // Sign in with Supabase auth
+    let email = usernameOrEmail;
+
+    // Check if input is username (doesn't contain @)
+    if (!usernameOrEmail.includes("@")) {
+      // Look up email by username
+      const { data: userByUsername, error: lookupError } = await supabase
+        .from("users")
+        .select("email")
+        .eq("username", usernameOrEmail)
+        .single();
+
+      if (lookupError || !userByUsername) {
+        return res.status(401).json({ error: "Invalid credentials" });
+      }
+
+      email = userByUsername.email;
+    }
+
+    // Sign in with Supabase auth using email
     const { user, error: authError } = await supabase.auth.signInWithPassword({
       email,
       password,
