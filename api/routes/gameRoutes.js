@@ -1,8 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const supabase = require('../../config/supabaseClient');
-const jwt = require('jsonwebtoken');
-const cryptoUtils = require('../../utils/crypto');
+const jwt = require("jsonwebtoken");
 
 // Middleware to verify JWT tokens
 const authenticateToken = (req, res, next) => {
