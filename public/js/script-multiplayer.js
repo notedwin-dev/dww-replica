@@ -715,7 +715,7 @@ const loginUser = async (usernameOrEmail, password) => {
       headers: {
         "Content-Type": "application/json",
       },
-      body: { usernameOrEmail, password },
+      body: JSON.parse({ usernameOrEmail, password }),
     });
 
     const data = await response.json();
