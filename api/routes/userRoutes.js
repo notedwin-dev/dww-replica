@@ -1,8 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const supabase = require('../../config/supabaseClient');
-const jwt = require('jsonwebtoken');
-const bcrypt = require("bcrypt");
+const jwt = require("jsonwebtoken");
 
 // Middleware to verify JWT tokens
 const authenticateToken = (req, res, next) => {
@@ -36,33 +35,43 @@ router.post("/register", async (req, res) => {
       return res.status(400).json({ error: "User already exists" });
     }
 
-    // Hash the password
-    const hashedPassword = await bcrypt.hash(password, 10);
+    // Register user with Supabase auth
+    const { user, error: authError } = await supabase.auth.signUp({
+      email,
+      password,
+    });
+
+    console.log("Supabase signUp response:", { user, authError }); // Log response for debugging
+
+    if (authError) throw authError;
+
+    if (!user || !user.id) {
+      console.error("Supabase signUp response:", { user, authError });
+      return res.status(500).json({ error: "Failed to register user" });
+    }
 
     // Create user profile in our custom users table
-    const insertResponse = await supabase.from("users").insert({
+    const { data, error } = await supabase.from("users").insert({
+      id: user.id,
       email,
       username,
-      password: hashedPassword,
       coins: 10000, // Starting coins
       created_at: new Date(),
     });
 
-    if (insertResponse.error) throw insertResponse.error;
-
-    const newUser = insertResponse.data;
+    if (error) throw error;
 
     // Create JWT token
-    const token = jwt.sign({ id: newUser.id }, process.env.JWT_SECRET);
+    const token = jwt.sign({ id: user.id }, process.env.JWT_SECRET);
 
     res.status(201).json({
       message: "User registered successfully",
       token,
       user: {
-        id: newUser.id,
-        email: newUser.email,
-        username: newUser.username,
-        coins: newUser.coins,
+        id: user.id,
+        email,
+        username,
+        coins: 10000,
       },
     });
   } catch (error) {
@@ -75,23 +84,22 @@ router.post("/login", async (req, res) => {
   try {
     const { email, password } = req.body;
 
+    // Sign in with Supabase auth
+    const { user, error: authError } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    });
+
+    if (authError) throw authError;
+
     // Get user details from our custom table
-    const { data: user, error } = await supabase
+    const { data: userData, error } = await supabase
       .from("users")
       .select("*")
-      .eq("email", email)
+      .eq("id", user.id)
       .single();
 
-    if (error || !user) {
-      return res.status(401).json({ error: "Invalid credentials" });
-    }
-
-    // Verify password
-    const isPasswordValid = await bcrypt.compare(password, user.password);
-
-    if (!isPasswordValid) {
-      return res.status(401).json({ error: "Invalid credentials" });
-    }
+    if (error) throw error;
 
     // Create JWT token
     const token = jwt.sign({ id: user.id }, process.env.JWT_SECRET);
@@ -99,15 +107,10 @@ router.post("/login", async (req, res) => {
     res.status(200).json({
       message: "Login successful",
       token,
-      user: {
-        id: user.id,
-        email: user.email,
-        username: user.username,
-        coins: user.coins,
-      },
+      user: userData,
     });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    res.status(401).json({ error: "Invalid credentials" });
   }
 });
 
