@@ -50,7 +50,7 @@ router.post("/register", async (req, res) => {
 
     if (insertResponse.error) throw insertResponse.error;
 
-    const newUser = insertResponse.data[0];
+    const newUser = insertResponse.data;
 
     // Create JWT token
     const token = jwt.sign({ id: newUser.id }, process.env.JWT_SECRET);
