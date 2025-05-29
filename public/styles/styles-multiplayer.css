@@ -217,18 +217,6 @@
 
 /* Add mobile responsiveness */
 @media (max-width: 768px) {
-  .row {
-    flex-direction: column;
-  }
-  
-  .column {
-    margin-bottom: 10px;
-  }
-  
-  .bet-options button {
-    margin-bottom: 10px;
-  }
-  
   .popup-content {
     width: 90%;
     max-width: 400px;
