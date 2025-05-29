@@ -325,12 +325,6 @@ body {
     font-size: 1.5em;
   }
   
-  .popup-content {
-    width: 95%;
-    max-width: 400px;
-    padding: 15px;
-  }
-  
   /* Auth form responsive styles */
   .auth-tabs,
   .auth-form,
