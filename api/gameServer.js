@@ -61,6 +61,47 @@ class GameServer {
     this.resetDelay = 5000; // 5 second delay before starting next round
   }
 
+  // Broadcast game updates to clients
+  async broadcastGameUpdate(eventType, data) {
+    try {
+      const channel = supabase.channel("game_updates");
+      await channel.send({
+        type: "broadcast",
+        event: eventType,
+        payload: data,
+      });
+      console.log(`Broadcasted ${eventType} event:`, data);
+    } catch (error) {
+      console.error("Failed to broadcast game update:", error);
+    }
+  }
+
+  // Start the game loop
+  startGameLoop() {
+    if (this.gameInterval) {
+      console.log("Game loop already running");
+      return;
+    }
+
+    this.gameInterval = setInterval(async () => {
+      try {
+        // End the current game and broadcast results
+        const result = getRandomAnimal();
+        await this.broadcastGameUpdate("game_end", { result });
+
+        // Wait for result delay before starting a new game
+        setTimeout(async () => {
+          const newGame = { id: Date.now(), status: "active" };
+          await this.broadcastGameUpdate("game_start", newGame);
+        }, this.resultDelay);
+      } catch (error) {
+        console.error("Error in game loop:", error);
+      }
+    }, this.roundDuration + this.resultDelay + this.resetDelay);
+
+    console.log("Game loop started");
+  }
+
   async startGameLoop() {
     if (this.gameInterval) {
       clearInterval(this.gameInterval);

@@ -124,17 +124,10 @@ const fetchGameState = async () => {
 
         console.log(
           `Game ${data.game.id}: Server time left: ${timeLeftSeconds}s, End time: ${data.game.end_time}`
-        );
-
-        // Use calculated time, but ensure we have at least 1 second for new games
+        ); // Use calculated time, but ensure we have at least 1 second for new games
         countdown = Math.max(timeLeftSeconds, 0);
 
-        // If countdown is 0 or very small, it means the game just started or is about to start
-        // For very new games (less than 25 seconds left), reset to full countdown
-        if (countdown <= 5 || countdown > 30) {
-          console.log(`Resetting countdown from ${countdown} to 30 seconds`);
-          countdown = 30;
-        }
+        console.log(`Setting countdown to ${countdown} seconds`);
 
         updateCountdownDisplay();
 
@@ -152,36 +145,24 @@ const fetchGameState = async () => {
         // If game has ended, display result
         if (data.game.status === "ended" && data.result) {
           displayResult(data.result);
-        } else {
-          // Start local countdown if not ended
+          // After showing result, wait a bit then start a new game
+          setTimeout(() => {
+            console.log("Creating new game after result display...");
+            createNewGame();
+          }, 3000);
+        } else if (countdown > 0) {
+          // Start local countdown if game is active and has time left
           console.log(`Starting countdown with ${countdown} seconds`);
           startCountdown();
+        } else {
+          // Game should have ended but hasn't - trigger end
+          console.log("Game time expired, should end soon...");
+          setTimeout(() => fetchGameState(), 1000);
         }
       } else {
         // No active game found, try to create one
         console.log("No active game found, attempting to create one...");
-        try {
-          const createResponse = await fetch(`${API_URL}/game/create`, {
-            method: "POST",
-          });
-          if (createResponse.ok) {
-            const createData = await createResponse.json();
-            console.log("Created new game:", createData.game?.id);
-
-            // Wait a bit more for the game to be properly created
-            setTimeout(() => {
-              console.log("Refetching state after game creation...");
-              fetchGameState();
-            }, 2000);
-          } else {
-            console.error(
-              "Failed to create game:",
-              await createResponse.text()
-            );
-          }
-        } catch (createError) {
-          console.error("Failed to create new game:", createError);
-        }
+        createNewGame();
       }
     } else {
       console.error("Error fetching game state:", data.error);
@@ -201,39 +182,23 @@ const subscribeToRealtime = () => {
     return;
   }
 
-  // Subscribe to game events channel
-  const gameEvents = supabase
-    .channel("game_events")
-    .on(
-      "postgres_changes",
-      {
-        event: "INSERT",
-        schema: "public",
-        table: "game_events",
-      },
-      (payload) => {
-        handleGameEvent(payload.new);
-      }
-    )
+  // Subscribe to game updates channel
+  const gameUpdates = supabase
+    .channel("game_updates")
+    .on("broadcast", { event: "game_start" }, (payload) => {
+      console.log("Game started:", payload);
+      currentGameId = payload.id;
+      resetBets();
+      startCountdown();
+    })
+    .on("broadcast", { event: "game_end" }, (payload) => {
+      console.log("Game ended:", payload);
+      displayResult(payload.result);
+      fetchPastResultsList();
+    })
     .subscribe();
 
-  // Subscribe to bets channel to see other players' bets in real-time
-  const betEvents = supabase
-    .channel("bet_events")
-    .on(
-      "postgres_changes",
-      {
-        event: "*",
-        schema: "public",
-        table: "bets",
-      },
-      (payload) => {
-        if (payload.new && payload.new.game_id === currentGameId) {
-          updateBetDisplay(payload.new);
-        }
-      }
-    )
-    .subscribe();
+  console.log("Subscribed to game updates channel");
 };
 
 // Handle game events from Supabase
@@ -416,18 +381,18 @@ const startCountdown = () => {
     countdown--;
     updateCountdownDisplay();
     console.log(`Countdown: ${countdown}s`);
-
     if (countdown <= 0) {
       console.log("Countdown reached 0, stopping interval");
       clearInterval(countdownInterval);
       countdownInterval = null;
       isCountdownActive = false;
 
-      // When countdown reaches 0, fetch new game state to get the next game
-      setTimeout(() => {
-        console.log("Fetching new game state after countdown ended");
-        fetchGameState();
-      }, 2000);
+      // Show waiting message
+      document.getElementById("result").textContent =
+        "Game ending, waiting for result...";
+
+      // Don't immediately fetch new state - let the server end the game first
+      // The server will end the game and we'll get the result via fetchGameState polling
     }
   }, 1000);
 };
@@ -942,6 +907,50 @@ const specials = [
     return: 95,
   },
 ];
+
+// Create a new game
+const createNewGame = async () => {
+  try {
+    console.log("Creating new game...");
+    const createResponse = await fetch(`${API_URL}/game/create`, {
+      method: "POST",
+    });
+
+    if (createResponse.ok) {
+      const createData = await createResponse.json();
+      console.log("Created new game:", createData.game?.id);
+
+      // Set the new game ID and start fresh countdown
+      currentGameId = createData.game.id;
+      countdown = 30;
+
+      // Reset bets and UI for new game
+      resetBets();
+      updateCountdownDisplay();
+
+      // Start countdown immediately
+      console.log("Starting fresh countdown for new game");
+      startCountdown();
+    } else {
+      const errorText = await createResponse.text();
+      console.error("Failed to create game:", errorText);
+
+      // Retry after a delay
+      setTimeout(() => {
+        console.log("Retrying game creation...");
+        createNewGame();
+      }, 3000);
+    }
+  } catch (createError) {
+    console.error("Failed to create new game:", createError);
+
+    // Retry after a delay
+    setTimeout(() => {
+      console.log("Retrying game creation after error...");
+      createNewGame();
+    }, 3000);
+  }
+};
 
 // Initialize the game when page loads
 document.addEventListener("DOMContentLoaded", () => {
