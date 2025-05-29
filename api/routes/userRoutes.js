@@ -26,13 +26,13 @@ router.post('/register', async (req, res) => {
 
     // Check if user exists
     const { data: existingUser } = await supabase
-      .from('users')
+      .from("users")
       .select()
-      .eq('email', email)
+      .eq("email", email)
       .single();
 
     if (existingUser) {
-      return res.status(400).json({ error: 'User already exists' });
+      return res.status(400).json({ error: "User already exists" });
     }
 
     // Register user with Supabase auth
@@ -40,6 +40,8 @@ router.post('/register', async (req, res) => {
       email,
       password,
     });
+
+    console.log("Supabase signUp response:", { user, authError }); // Log response for debugging
 
     if (authError) throw authError;
 
@@ -49,15 +51,13 @@ router.post('/register', async (req, res) => {
     }
 
     // Create user profile in our custom users table
-    const { data, error } = await supabase
-      .from('users')
-      .insert({
-        id: user.id,
-        email,
-        username,
-        coins: 10000, // Starting coins
-        created_at: new Date()
-      });
+    const { data, error } = await supabase.from("users").insert({
+      id: user.id,
+      email,
+      username,
+      coins: 10000, // Starting coins
+      created_at: new Date(),
+    });
 
     if (error) throw error;
 
@@ -65,14 +65,14 @@ router.post('/register', async (req, res) => {
     const token = jwt.sign({ id: user.id }, process.env.JWT_SECRET);
 
     res.status(201).json({
-      message: 'User registered successfully',
+      message: "User registered successfully",
       token,
       user: {
         id: user.id,
         email,
         username,
-        coins: 10000
-      }
+        coins: 10000,
+      },
     });
   } catch (error) {
     res.status(500).json({ error: error.message });
