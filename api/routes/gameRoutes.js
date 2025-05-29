@@ -29,26 +29,10 @@ const authenticateToken = (req, res, next) => {
 
 // Get Supabase configuration for client
 router.get('/config', (req, res) => {
-  // Generate a session ID for this client
-  const crypto = require('crypto');
-  const sessionId = crypto.randomBytes(16).toString('hex');
-  
-  // Data to encrypt
-  const configData = JSON.stringify({
-    supabaseUrl: process.env.SUPABASE_URL,
-    supabaseKey: process.env.SUPABASE_ANON_KEY
-  });
-  
-  // Encrypt the data using our utility
-  const { encryptedData, iv, salt } = cryptoUtils.encrypt(configData);
-  
-  // Send encrypted data with info needed for decryption
+  // Send configuration directly - much simpler!
   res.json({
-    sessionId,
-    iv,
-    salt,
-    encryptedConfig: encryptedData,
-    verification: cryptoUtils.createVerificationHash(configData)
+    supabaseUrl: process.env.SUPABASE_URL,
+    supabaseKey: process.env.SUPABASE_ANON_KEY,
   });
 });
 

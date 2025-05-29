@@ -58,141 +58,26 @@ const initializeGame = async () => {
 // Initialize Supabase client
 const initializeSupabaseClient = async () => {
   try {
-    // Fetch encrypted configuration from server
+    console.log("Fetching Supabase configuration from server...");
+
+    // Fetch configuration directly from server - much simpler!
     const response = await fetch(`${API_URL}/game/config`);
-    const encryptedConfig = await response.json();
-    
-    // Check if we received encrypted configuration
-    if (
-      !encryptedConfig.encryptedConfig ||
-      !encryptedConfig.iv ||
-      !encryptedConfig.salt
-    ) {
-      console.error("Incomplete encrypted configuration received");
-      return;
-    }
-    try {
-      // Check if clientCrypto is available
-      if (!window.clientCrypto) {
-        console.error(
-          "clientCrypto utility is not available. Loading it directly..."
-        );
-        // Load the clientCrypto script dynamically if it's not available
-        await new Promise((resolve, reject) => {
-          const script = document.createElement("script");
-          script.src = "js/clientCrypto.js";
-          script.onload = resolve;
-          script.onerror = reject;
-          document.head.appendChild(script);
-        });
-        console.log("clientCrypto script loaded dynamically");
-      }
+    const config = await response.json();
 
-      // Generate passphrase based on session ID from server
-      const passphrase = window.clientCrypto.generatePassphrase(
-        encryptedConfig.sessionId
+    console.log("Configuration received:", {
+      hasUrl: !!config.supabaseUrl,
+      hasKey: !!config.supabaseKey
+    });
+
+    // Initialize Supabase with the received configuration
+    if (config.supabaseUrl && config.supabaseKey) {
+      supabase = window.supabase.createClient(
+        config.supabaseUrl,
+        config.supabaseKey
       );
-
-      // Decrypt the configuration
-      const config = await window.clientCrypto.decryptData(
-        encryptedConfig.encryptedConfig,
-        encryptedConfig.iv,
-        encryptedConfig.salt,
-        passphrase
-      );
-
-      // Initialize Supabase with decrypted configuration
-      if (config.supabaseUrl && config.supabaseKey) {
-        supabase = window.supabase.createClient(
-          config.supabaseUrl,
-          config.supabaseKey
-        );
-        console.log("Supabase client initialized successfully");
-      } else {
-        console.error("Incomplete Supabase configuration after decryption");
-      }
-    } catch (decryptionError) {
-      console.error("Error decrypting configuration:", decryptionError);
-
-      // Fallback method using server's implementation approach
-      try {
-        const SECRET_KEY = "fallback-secret-key-for-dev"; // This should match server's fallback
-
-        // Create key from the same materials used on server side
-        const keyMaterial = await window.crypto.subtle.importKey(
-          "raw",
-          new TextEncoder().encode(SECRET_KEY),
-          { name: "PBKDF2" },
-          false,
-          ["deriveBits", "deriveKey"]
-        );        // Convert hex salt to array buffer for correct PBKDF2 derivation
-        let saltBytes;
-        try {
-          if (window.clientCrypto) {
-            saltBytes = window.clientCrypto.hexToArrayBuffer(encryptedConfig.salt);
-          } else {
-            // Convert salt from hex to ArrayBuffer manually
-            const saltHex = encryptedConfig.salt.replace(/\s/g, '');
-            const saltArray = new Uint8Array(saltHex.length / 2);
-            for (let i = 0; i < saltHex.length; i += 2) {
-              saltArray[i / 2] = parseInt(saltHex.substring(i, i + 2), 16);
-            }
-            saltBytes = saltArray.buffer;
-          }
-        } catch (e) {
-          console.error("Error converting salt:", e);
-          saltBytes = new TextEncoder().encode(encryptedConfig.salt);
-        }
-        
-        const key = await window.crypto.subtle.deriveKey(
-          {
-            name: "PBKDF2",
-            salt: saltBytes,
-            iterations: 1000,
-            hash: "SHA-256",
-          },
-          keyMaterial,
-          { name: "AES-CBC", length: 256 },
-          false,
-          ["decrypt"]
-        );
-
-        // Convert the hex IV to ArrayBuffer
-        const ivArray = new Uint8Array(
-          encryptedConfig.iv.match(/.{1,2}/g).map((byte) => parseInt(byte, 16))
-        );
-
-        // Convert hex encrypted data to ArrayBuffer
-        const encryptedData = new Uint8Array(
-          encryptedConfig.encryptedConfig
-            .match(/.{1,2}/g)
-            .map((byte) => parseInt(byte, 16))
-        );
-
-        // Decrypt
-        const decryptedData = await window.crypto.subtle.decrypt(
-          {
-            name: "AES-CBC",
-            iv: ivArray.buffer,
-          },
-          key,
-          encryptedData.buffer
-        );
-
-        // Parse the decrypted JSON
-        const config = JSON.parse(new TextDecoder().decode(decryptedData));
-
-        // Initialize Supabase with decrypted configuration
-        if (config.supabaseUrl && config.supabaseKey) {
-          supabase = window.supabase.createClient(
-            config.supabaseUrl,
-            config.supabaseKey
-          );
-          console.log("Supabase client initialized with fallback method");
-        }
-      } catch (fallbackError) {
-        console.error("Fallback decryption also failed:", fallbackError);
-      }
+      console.log("Supabase client initialized successfully");
+    } else {
+      console.error("Incomplete Supabase configuration received");
     }
   } catch (error) {
     console.error('Failed to fetch Supabase configuration:', error);
