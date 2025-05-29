@@ -1,9 +1,10 @@
 const express = require('express');
 const cors = require('cors');
-const userRoutes = require('./routes/userRoutes');
-const gameRoutes = require('./routes/gameRoutes');
-const leaderboardRoutes = require('./routes/leaderboardRoutes');
-require('dotenv').config();
+const path = require("path");
+const userRoutes = require("./routes/userRoutes");
+const gameRoutes = require("./routes/gameRoutes");
+const leaderboardRoutes = require("./routes/leaderboardRoutes");
+require("dotenv").config();
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -12,14 +13,22 @@ const PORT = process.env.PORT || 3000;
 app.use(express.json());
 app.use(cors());
 
-// Routes
-app.use('/api/users', userRoutes);
-app.use('/api/game', gameRoutes);
-app.use('/api/leaderboard', leaderboardRoutes);
+// Serve static files from the public directory
+app.use(express.static(path.join(__dirname, "..", "public")));
 
-// Root route
-app.get('/', (req, res) => {
-  res.send('DWW Game API is running');
+// Routes
+app.use("/api/users", userRoutes);
+app.use("/api/game", gameRoutes);
+app.use("/api/leaderboard", leaderboardRoutes);
+
+// Root route - serve the main HTML file
+app.get("/", (req, res) => {
+  res.sendFile(path.join(__dirname, "..", "public", "index.html"));
+});
+
+// Multiplayer route
+app.get("/multiplayer", (req, res) => {
+  res.sendFile(path.join(__dirname, "..", "public", "multiplayer.html"));
 });
 
 // Error handler
