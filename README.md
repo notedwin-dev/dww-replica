@@ -6,11 +6,38 @@
 
 ## Getting Started
 
-To get started with this project, follow these steps:
+### For Single Player Mode
+
+To get started with the single-player version:
 
 1. Clone the repository to your local machine.
 2. Open the `index.html` file in your web browser.
 3. Start playing the game!
+
+### For Multiplayer Mode
+
+The multiplayer version requires server setup:
+
+1. Clone the repository to your local machine.
+2. Install dependencies:
+   ```
+   npm install
+   ```
+3. Create a `.env` file based on `.env.example` with your Supabase credentials:
+   ```
+   # Required environment variables
+   SUPABASE_URL=your-supabase-url
+   SUPABASE_ANON_KEY=your-public-anon-key
+   SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
+   SERVER_SECRET=your-server-encryption-secret
+   JWT_SECRET=your-jwt-secret-for-auth
+   ```
+4. Set up the database by running the SQL scripts in the `database` folder in your Supabase SQL editor.
+5. Start the server:
+   ```
+   npm start
+   ```
+6. Open `index-multiplayer.html` in your browser or navigate to `http://localhost:3000` if deployed.
 
 ## Game Rules
 
@@ -19,6 +46,16 @@ To get started with this project, follow these steps:
 - You can select the amount of coins you want to bet by clicking on the corresponding buttons.
 - Choose an animal to place your bet on by clicking on the animal button.
 - The game will randomly select an animal as the outcome.
+
+## Security Implementation
+
+The multiplayer version includes several security features:
+
+1. **Encrypted Communication**: Supabase credentials are encrypted on the server and securely transmitted to clients.
+2. **Environment Variables**: Sensitive information is stored in environment variables, not in code.
+3. **JWT Authentication**: User sessions are secured with JWT tokens.
+4. **Row Level Security**: Database tables use Postgres RLS policies to restrict data access.
+5. **Service Role Separation**: Server-side operations use a service role key that never reaches clients.
 - If you win the bet, you will receive a certain number of coins based on the return rate of the animal.
 - The game keeps track of your total coins and past results.
 
@@ -27,14 +64,14 @@ To get started with this project, follow these steps:
 - [ ] Total Investment in game
 - [ ] Total Winnings
 - [ ] Total number of rounds occurred
-- [ ] Multiplayer mode
-- [ ] Multiplayer leaderboard
+- [x] Multiplayer mode
+- [x] Multiplayer leaderboard
 - [ ] Sound effects for buttons
 - [ ] Music
 - [ ] In-game tutorial
 - [ ] Ability to export data to CSV and analyze game data for AI model prediction.
 - [ ] In-game AI model prediction
-- [ ] Save game progress using database / browser storage.
+- [x] Save game progress using database / browser storage.
 
 ## Technologies Used
 
