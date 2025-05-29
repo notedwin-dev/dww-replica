@@ -732,12 +732,12 @@ async function fetchGameHistory() {
     const data = await response.json();
 
     if (response.ok) {
-      // Add local bet data for guest users
-      if (!user) {
+      // Add local bet data for guest users only if truly playing as guest (anonymous user)
+      if (!user && isAnonymousUser) {
         // For anonymous users, add local bets to game history
         data.forEach((game) => {
           if (game.id && game.status === "ended") {
-            // If this is a guest user, we need to use localStorage information
+            // Use localStorage information for this guest user
             const storedBets = JSON.parse(
               localStorage.getItem(`bets_game_${game.id}`) || "[]"
             );
@@ -777,39 +777,41 @@ function updateGameHistoryTable(gameHistory) {
         specials.find((s) => s.name === game.result); // Display animal name (use display name from game data or find from animals array)
       animalCell.textContent =
         game.result_display_name ||
-        (resultAnimal ? resultAnimal.displayName : game.result);
-
-      // Use the total bets and winnings from the server when available
+        (resultAnimal ? resultAnimal.displayName : game.result); // Use the total bets and winnings from the server when available
       let userBetsTotal = game.total_bets || 0;
       let userWinnings = game.total_winnings || 0;
 
-      // If server didn't provide totals (e.g., for guest users), calculate from local data
-      if (
-        userBetsTotal === 0 &&
-        game.user_bets &&
-        Array.isArray(game.user_bets)
-      ) {
-        // Sum up all bets placed by the user for this game
-        userBetsTotal = game.user_bets.reduce(
-          (sum, bet) => sum + bet.amount,
-          0
-        );
-      }
+      // Only calculate from local data for authenticated guests (anonymous users)
+      // This ensures non-logged in users don't see any bets
+      if (isAnonymousUser && !user) {
+        // If server didn't provide totals for anonymous guest users, calculate from local data
+        if (
+          userBetsTotal === 0 &&
+          game.user_bets &&
+          Array.isArray(game.user_bets)
+        ) {
+          // Sum up all bets placed by the user for this game
+          userBetsTotal = game.user_bets.reduce(
+            (sum, bet) => sum + bet.amount,
+            0
+          );
+        }
 
-      // For guest users or if the backend hasn't been updated yet
-      if (
-        userWinnings === 0 &&
-        !game.total_winnings &&
-        game.user_bets &&
-        Array.isArray(game.user_bets)
-      ) {
-        // Calculate winnings if the user bet on the winning animal
-        const winningBet = game.user_bets.find(
-          (bet) => bet.animal === game.result
-        );
-        if (winningBet) {
-          const multiplier = resultAnimal ? resultAnimal.return : 5; // Default to 5x if not found
-          userWinnings = winningBet.amount * multiplier;
+        // For anonymous guest users or if the backend hasn't been updated yet
+        if (
+          userWinnings === 0 &&
+          !game.total_winnings &&
+          game.user_bets &&
+          Array.isArray(game.user_bets)
+        ) {
+          // Calculate winnings if the user bet on the winning animal
+          const winningBet = game.user_bets.find(
+            (bet) => bet.animal === game.result
+          );
+          if (winningBet) {
+            const multiplier = resultAnimal ? resultAnimal.return : 5; // Default to 5x if not found
+            userWinnings = winningBet.amount * multiplier;
+          }
         }
       }
 
