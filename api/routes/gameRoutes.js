@@ -115,6 +115,7 @@ router.get("/state", async (req, res) => {
 
 // Place a bet
 router.post("/bet", authenticateToken, async (req, res) => {
+  // This route is maintained for backward compatibility
   if (!req.user.id) {
     return res
       .status(401)
@@ -126,17 +127,22 @@ router.post("/bet", authenticateToken, async (req, res) => {
 
     if (!animal || !amount) {
       return res.status(400).json({ error: "Animal and amount are required" });
-    }
-
-    // Get current game
-    const { data: gameData, error: gameError } = await supabase
+    } // Get current game
+    const { data: games, error: gameError } = await supabase
       .from("games")
       .select("*")
+      .eq("status", "active")
       .order("created_at", { ascending: false })
-      .limit(1)
-      .single();
+      .limit(1);
 
     if (gameError) throw gameError;
+
+    // Check if we got any active games
+    if (!games || games.length === 0) {
+      return res.status(400).json({ error: "No active game found" });
+    }
+
+    const gameData = games[0];
 
     // Check if game is still active
     if (new Date(gameData.end_time) < new Date()) {
@@ -168,10 +174,8 @@ router.post("/bet", authenticateToken, async (req, res) => {
       .select()
       .single();
 
-    if (updateError) throw updateError;
-
-    // Record the bet
-    const { data: bet, error: betError } = await supabase
+    if (updateError) throw updateError; // Record the bet
+    const { data: bets, error: betError } = await supabase
       .from("bets")
       .insert({
         user_id: req.user.id,
@@ -180,14 +184,112 @@ router.post("/bet", authenticateToken, async (req, res) => {
         amount,
         created_at: new Date(),
       })
-      .select()
-      .single();
+      .select();
 
     if (betError) throw betError;
+
+    // Get the inserted bet (should be only one)
+    const bet = bets && bets.length > 0 ? bets[0] : null;
 
     res.status(201).json({
       message: "Bet placed successfully",
       bet,
+      user: updatedUser,
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Place multiple bets at once (batch processing)
+router.post("/bets/batch", authenticateToken, async (req, res) => {
+  if (!req.user.id) {
+    return res
+      .status(401)
+      .json({ error: "You must be logged in to place bets" });
+  }
+
+  try {
+    const { bets } = req.body;
+
+    if (!bets || !Array.isArray(bets) || bets.length === 0) {
+      return res
+        .status(400)
+        .json({ error: "Bets array is required and must not be empty" });
+    }
+
+    // Get current game
+    const { data: games, error: gameError } = await supabase
+      .from("games")
+      .select("*")
+      .eq("status", "active")
+      .order("created_at", { ascending: false })
+      .limit(1);
+
+    if (gameError) throw gameError;
+
+    // Check if we got any active games
+    if (!games || games.length === 0) {
+      return res.status(400).json({ error: "No active game found" });
+    }
+
+    const gameData = games[0];
+
+    // Check if game is still active
+    if (new Date(gameData.end_time) < new Date()) {
+      return res
+        .status(400)
+        .json({ error: "Betting time has ended for this round" });
+    }
+
+    // Calculate total bet amount
+    const totalBetAmount = bets.reduce((sum, bet) => sum + bet.amount, 0);
+
+    // Check if user has enough coins
+    const { data: userData, error: userError } = await supabase
+      .from("users")
+      .select("coins")
+      .eq("id", req.user.id)
+      .single();
+
+    if (userError) throw userError;
+
+    if (userData.coins < totalBetAmount) {
+      return res.status(400).json({ error: "Not enough coins for all bets" });
+    }
+
+    // Prepare bets for insertion
+    const betsToInsert = bets.map((bet) => ({
+      user_id: req.user.id,
+      game_id: gameData.id,
+      animal: bet.animal,
+      amount: bet.amount,
+      created_at: new Date(),
+    }));
+
+    // Start a transaction for consistency
+    // 1. Subtract coins from user
+    // 2. Record all bets
+    const { data: updatedUser, error: updateError } = await supabase
+      .from("users")
+      .update({ coins: userData.coins - totalBetAmount })
+      .eq("id", req.user.id)
+      .select()
+      .single();
+
+    if (updateError) throw updateError;
+
+    // Record all bets
+    const { data: insertedBets, error: betError } = await supabase
+      .from("bets")
+      .insert(betsToInsert)
+      .select();
+
+    if (betError) throw betError;
+
+    res.status(201).json({
+      message: "Bets placed successfully",
+      bets: insertedBets,
       user: updatedUser,
     });
   } catch (error) {

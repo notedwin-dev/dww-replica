@@ -28,6 +28,8 @@ let bets = {
   pig: 0,
   lion: 0,
 };
+// Array to collect pending bets to be sent in batch at end of round
+let pendingBets = [];
 let currentGameId = null;
 let user = null;
 let authToken = null;
@@ -301,25 +303,32 @@ const fetchGameState = async () => {
         // Update bet display if there are any bets
         if (data.bets && data.bets.length > 0) {
           updateAllBetsDisplay(data.bets);
+        }      // If game has ended, display result
+      if (data.game.status === "ended" && data.result) {
+        // If somehow we still have pending bets, try to submit them before showing results
+        if (pendingBets.length > 0 && user) {
+          await submitPendingBets();
         }
-
-        // If game has ended, display result
-        if (data.game.status === "ended" && data.result) {
-          displayResult(data.result);
-          // After showing result, wait a bit then start a new game
-          setTimeout(() => {
-            console.log("Creating new game after result display...");
-            createNewGame();
-          }, 3000);
-        } else if (countdown > 0) {
-          // Start local countdown if game is active and has time left
-          console.log(`Starting countdown with ${countdown} seconds`);
-          startCountdown();
-        } else {
-          // Game should have ended but hasn't - trigger end
-          console.log("Game time expired, should end soon...");
-          setTimeout(() => fetchGameState(), 1000);
+        
+        displayResult(data.result);
+        // After showing result, wait a bit then start a new game
+        setTimeout(() => {
+          console.log("Creating new game after result display...");
+          createNewGame();
+        }, 3000);
+      } else if (countdown > 0) {
+        // Start local countdown if game is active and has time left
+        console.log(`Starting countdown with ${countdown} seconds`);
+        startCountdown();
+      } else {
+        // Game should have ended but hasn't - trigger end
+        console.log("Game time expired, should end soon...");
+        // If we have pending bets, submit them now
+        if (pendingBets.length > 0 && user) {
+          await submitPendingBets();
         }
+        setTimeout(() => fetchGameState(), 1000);
+      }
       } else {
         // No active game found, try to create one
         console.log("No active game found, attempting to create one...");
@@ -460,43 +469,27 @@ const placeBet = async (animal) => {
     return;
   }
 
-  try {
-    // If not logged in, only update local UI
-    if (!user) {
-      updateLocalBet(animal, selectedBetAmount);
-      return;
-    }
+  // If not logged in, only update local UI
+  if (!user) {
+    updateLocalBet(animal, selectedBetAmount);
+    return;
+  }
 
-    const response = await fetch(`${API_URL}/game/bet`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${authToken}`,
-      },
-      body: JSON.stringify({
-        gameId: currentGameId,
-        animal,
-        amount: selectedBetAmount,
-      }),
-    });
+  // Add bet to pending bets array instead of sending immediately
+  pendingBets.push({
+    animal,
+    amount: selectedBetAmount,
+  });
+  
+  console.log(`Added bet to pending batch: ${animal} - ${selectedBetAmount} coins (total: ${pendingBets.length} pending bets)`);
+  
+  // Update local state and UI
+  updateLocalBet(animal, selectedBetAmount);
 
-    const data = await response.json();
-
-    if (response.ok) {
-      // Update local state and UI
-      updateLocalBet(animal, selectedBetAmount);
-
-      // Update user object in localStorage with new coin amount
-      if (user) {
-        user.coins = coins;
-        localStorage.setItem("user", JSON.stringify(user));
-      }
-    } else {
-      alert(`Failed to place bet: ${data.error}`);
-    }
-  } catch (error) {
-    console.error("Error placing bet:", error);
-    alert("There was an error placing your bet. Please try again.");
+  // Update user object in localStorage with new coin amount
+  if (user) {
+    user.coins = coins;
+    localStorage.setItem("user", JSON.stringify(user));
   }
 };
 
@@ -595,7 +588,6 @@ const startCountdown = () => {
   console.log(`Starting countdown from ${countdown} seconds`);
 
   updateCountdownDisplay();
-
   countdownInterval = setInterval(() => {
     countdown--;
     updateCountdownDisplay();
@@ -605,6 +597,11 @@ const startCountdown = () => {
       clearInterval(countdownInterval);
       countdownInterval = null;
       isCountdownActive = false;
+
+      // Submit all pending bets in batch if there are any
+      if (pendingBets.length > 0 && user) {
+        submitPendingBets();
+      }
 
       // Show waiting message
       document.getElementById("result").textContent =
@@ -790,6 +787,9 @@ const resetBets = () => {
   document
     .querySelectorAll(".bet-options button")
     .forEach((button) => button.classList.remove("selected"));
+    
+  // Clear any pending bets
+  pendingBets = [];
 };
 
 // Toggle visibility of the history table
@@ -1375,6 +1375,47 @@ const createNewGame = async () => {
       console.log("Retrying game creation after error...");
       createNewGame();
     }, 3000);
+  }
+};
+
+// Submit all pending bets to the server in one batch
+const submitPendingBets = async () => {
+  // Only proceed if we have pending bets and a logged-in user
+  if (pendingBets.length === 0 || !user) {
+    return;
+  }
+
+  console.log(`Submitting ${pendingBets.length} pending bets in batch`);
+  
+  try {
+    const response = await fetch(`${API_URL}/game/bets/batch`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${authToken}`,
+      },
+      body: JSON.stringify({
+        bets: pendingBets,
+      }),
+    });
+
+    const data = await response.json();
+
+    if (response.ok) {
+      console.log("Batch bet submission successful");
+      // All bets are now processed, clear the pending bets
+      pendingBets = [];
+      
+      // Update user with the updated coins from the server if available
+      if (data.user && data.user.coins !== undefined) {
+        user.coins = data.user.coins;
+        localStorage.setItem("user", JSON.stringify(user));
+      }
+    } else {
+      console.error("Failed to submit bets in batch:", data.error);
+    }
+  } catch (error) {
+    console.error("Error submitting bets in batch:", error);
   }
 };
 
