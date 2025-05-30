@@ -592,16 +592,18 @@ const startCountdown = () => {
     countdown--;
     updateCountdownDisplay();
     console.log(`Countdown: ${countdown}s`);
+
+    // Submit bets 2 seconds before the end to avoid timing issues with server
+    if (countdown === 2 && pendingBets.length > 0 && user) {
+      console.log("Submitting bets 2 seconds before end of round");
+      submitPendingBets();
+    }
+
     if (countdown <= 0) {
       console.log("Countdown reached 0, stopping interval");
       clearInterval(countdownInterval);
       countdownInterval = null;
       isCountdownActive = false;
-
-      // Submit all pending bets in batch if there are any
-      if (pendingBets.length > 0 && user) {
-        submitPendingBets();
-      }
 
       // Show waiting message
       document.getElementById("result").textContent =
@@ -787,7 +789,7 @@ const resetBets = () => {
   document
     .querySelectorAll(".bet-options button")
     .forEach((button) => button.classList.remove("selected"));
-    
+
   // Clear any pending bets
   pendingBets = [];
 };
@@ -1386,8 +1388,9 @@ const submitPendingBets = async () => {
   }
 
   console.log(`Submitting ${pendingBets.length} pending bets in batch`);
-  
+
   try {
+    // Submit bets 1 second before countdown reaches 0 to avoid "betting time ended" error
     const response = await fetch(`${API_URL}/game/bets/batch`, {
       method: "POST",
       headers: {
@@ -1405,7 +1408,7 @@ const submitPendingBets = async () => {
       console.log("Batch bet submission successful");
       // All bets are now processed, clear the pending bets
       pendingBets = [];
-      
+
       // Update user with the updated coins from the server if available
       if (data.user && data.user.coins !== undefined) {
         user.coins = data.user.coins;
@@ -1413,6 +1416,28 @@ const submitPendingBets = async () => {
       }
     } else {
       console.error("Failed to submit bets in batch:", data.error);
+
+      // If we get "Betting time has ended" error, don't penalize the user
+      if (data.error === "Betting time has ended for this round") {
+        console.log(
+          "Game ended before bets could be processed. Restoring bets."
+        );
+
+        // Restore coins that were deducted locally
+        pendingBets.forEach((bet) => {
+          coins += bet.amount;
+        });
+        updateCoinsDisplay();
+
+        // Update user object in localStorage with restored coin amount
+        if (user) {
+          user.coins = coins;
+          localStorage.setItem("user", JSON.stringify(user));
+        }
+      }
+
+      // Clear pending bets regardless of error
+      pendingBets = [];
     }
   } catch (error) {
     console.error("Error submitting bets in batch:", error);

@@ -142,10 +142,13 @@ router.post("/bet", authenticateToken, async (req, res) => {
       return res.status(400).json({ error: "No active game found" });
     }
 
-    const gameData = games[0];
+    const gameData = games[0]; // Check if game is still active
+    // For single bets we have a small 1-second grace period
+    const now = new Date();
+    const endTime = new Date(gameData.end_time);
+    const gracePeriod = 1000; // 1 second in milliseconds
 
-    // Check if game is still active
-    if (new Date(gameData.end_time) < new Date()) {
+    if (now.getTime() - endTime.getTime() > gracePeriod) {
       return res
         .status(400)
         .json({ error: "Betting time has ended for this round" });
@@ -235,8 +238,13 @@ router.post("/bets/batch", authenticateToken, async (req, res) => {
 
     const gameData = games[0];
 
-    // Check if game is still active
-    if (new Date(gameData.end_time) < new Date()) {
+    // Check if game is still active with a 3-second grace period for batch betting
+    // This helps account for network delays and client-server time differences
+    const now = new Date();
+    const endTime = new Date(gameData.end_time);
+    const gracePeriod = 3000; // 3 seconds in milliseconds
+
+    if (now.getTime() - endTime.getTime() > gracePeriod) {
       return res
         .status(400)
         .json({ error: "Betting time has ended for this round" });
