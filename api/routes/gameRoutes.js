@@ -295,6 +295,8 @@ router.post("/bets/batch", authenticateToken, async (req, res) => {
       .order("id", { ascending: true })
       .limit(1);
 
+    console.log("Debug: User ID for coin update:", req.user.id);
+
     if (updateError) {
       console.error("Error updating user coins:", updateError);
       console.error("Query details: user_id =", req.user.id, "coins =", userCoins - totalBetAmount);
@@ -302,6 +304,7 @@ router.post("/bets/batch", authenticateToken, async (req, res) => {
     }
 
     if (!updatedUser || updatedUser.length === 0) {
+      console.error("Failed to update user coins. User ID:", req.user.id);
       return res.status(400).json({ error: "Failed to update user coins" });
     }
 
