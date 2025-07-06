@@ -290,7 +290,10 @@ router.post("/bets/batch", authenticateToken, async (req, res) => {
     // 2. Record all bets
     const { data: updatedUser, error: updateError } = await supabase
       .from("users")
-      .update({ coins: userCoins - totalBetAmount })
+      .update({
+        coins: userCoins - totalBetAmount,
+        updated_at: new Date()
+      })
       .eq("id", req.user.id)
       .select();
 
