@@ -383,7 +383,11 @@ router.get("/heartbeat", async (req, res) => {
       .eq("status", "active")
       .order("created_at", { ascending: false });
 
-    if (activeError) throw activeError;
+    if (activeError) {
+      console.error("Error fetching active games:", activeError);
+      console.error("Query details: status = active, order = created_at DESC");
+      throw activeError;
+    }
 
     let gameStatus = "no_active_games";
     let message = "No active games found";
@@ -418,6 +422,7 @@ router.get("/heartbeat", async (req, res) => {
     });
   } catch (error) {
     console.error("Heartbeat error:", error);
+    console.error("Additional context: endpoint = /heartbeat");
     res.status(500).json({ error: error.message });
   }
 });
