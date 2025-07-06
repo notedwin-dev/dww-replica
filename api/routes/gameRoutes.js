@@ -258,11 +258,21 @@ router.post("/bets/batch", authenticateToken, async (req, res) => {
       .from("users")
       .select("coins")
       .eq("id", req.user.id)
-      .single();
+      .limit(1);
 
-    if (userError) throw userError;
+    if (userError) {
+      console.error("Error fetching user data:", userError);
+      console.error("Query details: user_id =", req.user.id);
+      throw userError;
+    }
 
-    if (userData.coins < totalBetAmount) {
+    if (!userData || userData.length === 0) {
+      return res.status(400).json({ error: "User not found" });
+    }
+
+    const userCoins = userData[0].coins;
+
+    if (userCoins < totalBetAmount) {
       return res.status(400).json({ error: "Not enough coins for all bets" });
     }
 
@@ -280,12 +290,19 @@ router.post("/bets/batch", authenticateToken, async (req, res) => {
     // 2. Record all bets
     const { data: updatedUser, error: updateError } = await supabase
       .from("users")
-      .update({ coins: userData.coins - totalBetAmount })
+      .update({ coins: userCoins - totalBetAmount })
       .eq("id", req.user.id)
-      .select()
-      .single();
+      .limit(1);
 
-    if (updateError) throw updateError;
+    if (updateError) {
+      console.error("Error updating user coins:", updateError);
+      console.error("Query details: user_id =", req.user.id, "coins =", userCoins - totalBetAmount);
+      throw updateError;
+    }
+
+    if (!updatedUser || updatedUser.length === 0) {
+      return res.status(400).json({ error: "Failed to update user coins" });
+    }
 
     // Record all bets
     const { data: insertedBets, error: betError } = await supabase
