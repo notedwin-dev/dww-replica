@@ -172,7 +172,10 @@ router.post("/bet", authenticateToken, async (req, res) => {
     // 2. Record the bet
     const { data: updatedUser, error: updateError } = await supabase
       .from("users")
-      .update({ coins: userData.coins - amount })
+      .update({
+        coins: userData.coins - amount,
+        updated_at: new Date()
+      })
       .eq("id", req.user.id)
       .select()
       .single();
@@ -215,10 +218,39 @@ router.post("/bets/batch", authenticateToken, async (req, res) => {
   try {
     const { bets } = req.body;
 
-    if (!bets || !Array.isArray(bets) || bets.length === 0) {
+    if (!bets || typeof bets !== 'object') {
       return res
         .status(400)
-        .json({ error: "Bets array is required and must not be empty" });
+        .json({ error: "Bets object is required" });
+    }
+
+    // Valid animal names
+    const validAnimals = ["turtle", "hedgehog", "raccoon", "elephant", "cat", "fox", "pig", "lion"];
+
+    // Validate and calculate total bet amount
+    let totalBetAmount = 0;
+    const betsToInsert = [];
+
+    for (const [animal, amount] of Object.entries(bets)) {
+      if (!validAnimals.includes(animal)) {
+        return res.status(400).json({ error: `Invalid animal: ${animal}` });
+      }
+
+      if (typeof amount !== 'number' || amount < 0) {
+        return res.status(400).json({ error: `Invalid amount for ${animal}: ${amount}` });
+      }
+
+      if (amount > 0) {
+        totalBetAmount += amount;
+        betsToInsert.push({
+          animal,
+          amount
+        });
+      }
+    }
+
+    if (totalBetAmount === 0) {
+      return res.status(400).json({ error: "Total bet amount must be greater than 0" });
     }
 
     // Get current game
@@ -250,9 +282,6 @@ router.post("/bets/batch", authenticateToken, async (req, res) => {
         .json({ error: "Betting time has ended for this round" });
     }
 
-    // Calculate total bet amount
-    const totalBetAmount = bets.reduce((sum, bet) => sum + bet.amount, 0);
-
     // Check if user has enough coins
     const { data: userData, error: userError } = await supabase
       .from("users")
@@ -276,8 +305,44 @@ router.post("/bets/batch", authenticateToken, async (req, res) => {
       return res.status(400).json({ error: "Not enough coins for all bets" });
     }
 
+    // Check if user already has bets for this game
+    const { data: existingBets, error: existingBetsError } = await supabase
+      .from("bets")
+      .select("amount")
+      .eq("user_id", req.user.id)
+      .eq("game_id", gameData.id);
+
+    if (existingBetsError) {
+      console.error("Error fetching existing bets:", existingBetsError);
+      throw existingBetsError;
+    }
+
+    // Calculate refund amount from previous bets
+    const refundAmount = existingBets?.reduce((sum, bet) => sum + bet.amount, 0) || 0;
+
+    // Net amount to deduct (new total - refund)
+    const netAmount = totalBetAmount - refundAmount;
+
+    if (userCoins + refundAmount < totalBetAmount) {
+      return res.status(400).json({ error: "Not enough coins for all bets" });
+    }
+
+    // Delete existing bets for this game and user
+    if (existingBets && existingBets.length > 0) {
+      const { error: deleteError } = await supabase
+        .from("bets")
+        .delete()
+        .eq("user_id", req.user.id)
+        .eq("game_id", gameData.id);
+
+      if (deleteError) {
+        console.error("Error deleting existing bets:", deleteError);
+        throw deleteError;
+      }
+    }
+
     // Prepare bets for insertion
-    const betsToInsert = bets.map((bet) => ({
+    const betsForDB = betsToInsert.map((bet) => ({
       user_id: req.user.id,
       game_id: gameData.id,
       animal: bet.animal,
@@ -286,12 +351,12 @@ router.post("/bets/batch", authenticateToken, async (req, res) => {
     }));
 
     // Start a transaction for consistency
-    // 1. Subtract coins from user
+    // 1. Update user coins (subtract net amount)
     // 2. Record all bets
     const { data: updatedUser, error: updateError } = await supabase
       .from("users")
       .update({
-        coins: userCoins - totalBetAmount,
+        coins: userCoins - netAmount,
         updated_at: new Date()
       })
       .eq("id", req.user.id)
@@ -299,7 +364,7 @@ router.post("/bets/batch", authenticateToken, async (req, res) => {
 
     if (updateError) {
       console.error("Error updating user coins:", updateError);
-      console.error("Query details: user_id =", req.user.id, "coins =", userCoins - totalBetAmount);
+      console.error("Query details: user_id =", req.user.id, "net_amount =", netAmount);
       throw updateError;
     }
 
@@ -311,7 +376,7 @@ router.post("/bets/batch", authenticateToken, async (req, res) => {
     // Record all bets
     const { data: insertedBets, error: betError } = await supabase
       .from("bets")
-      .insert(betsToInsert)
+      .insert(betsForDB)
       .select();
 
     if (betError) throw betError;
@@ -320,6 +385,9 @@ router.post("/bets/batch", authenticateToken, async (req, res) => {
       message: "Bets placed successfully",
       bets: insertedBets,
       user: updatedUser,
+      totalAmount: totalBetAmount,
+      refundAmount: refundAmount,
+      netAmount: netAmount
     });
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -627,6 +695,7 @@ async function endGame(gameId) {
           .from("users")
           .update({
             coins: userData.coins + winnings,
+            updated_at: new Date()
           })
           .eq("id", bet.user_id);
 

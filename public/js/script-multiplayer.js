@@ -18,6 +18,8 @@ let coins = 10000;
 let betAmount = 0;
 let selectedAnimal = "";
 let selectedBetAmount = 0;
+let betsProcessedByServer = false; // Track if current round's bets were processed by server
+let lastSubmittedBets = {}; // Store the bets that were submitted in the current round
 let bets = {
   turtle: 0,
   hedgehog: 0,
@@ -28,8 +30,6 @@ let bets = {
   pig: 0,
   lion: 0,
 };
-// Array to collect pending bets to be sent in batch at end of round
-let pendingBets = [];
 let currentGameId = null;
 let user = null;
 let authToken = null;
@@ -304,12 +304,7 @@ const fetchGameState = async () => {
         if (data.bets && data.bets.length > 0) {
           updateAllBetsDisplay(data.bets);
         }      // If game has ended, display result
-      if (data.game.status === "ended" && data.result) {
-        // If somehow we still have pending bets, try to submit them before showing results
-        if (pendingBets.length > 0 && user) {
-          await submitPendingBets();
-        }
-        
+        if (data.game.status === "ended" && data.result) {
         displayResult(data.result);
         // After showing result, wait a bit then start a new game
         setTimeout(() => {
@@ -323,10 +318,6 @@ const fetchGameState = async () => {
       } else {
         // Game should have ended but hasn't - trigger end
         console.log("Game time expired, should end soon...");
-        // If we have pending bets, submit them now
-        if (pendingBets.length > 0 && user) {
-          await submitPendingBets();
-        }
         setTimeout(() => fetchGameState(), 1000);
       }
       } else {
@@ -475,15 +466,9 @@ const placeBet = async (animal) => {
     return;
   }
 
-  // Add bet to pending bets array instead of sending immediately
-  pendingBets.push({
-    animal,
-    amount: selectedBetAmount,
-  });
+  console.log(`Adding bet: ${animal} - ${selectedBetAmount} coins`);
   
-  console.log(`Added bet to pending batch: ${animal} - ${selectedBetAmount} coins (total: ${pendingBets.length} pending bets)`);
-  
-  // Update local state and UI
+  // Update local state and UI immediately
   updateLocalBet(animal, selectedBetAmount);
 
   // Update user object in localStorage with new coin amount
@@ -583,8 +568,10 @@ const startCountdown = () => {
     countdownInterval = null;
   }
 
-  // Reset the countdown state
+  // Reset the countdown state and bet processing flag for new round
   isCountdownActive = true;
+  betsProcessedByServer = false; // Reset flag for new round
+  lastSubmittedBets = {}; // Clear previous round's submitted bets
   console.log(`Starting countdown from ${countdown} seconds`);
 
   updateCountdownDisplay();
@@ -594,9 +581,12 @@ const startCountdown = () => {
     console.log(`Countdown: ${countdown}s`);
 
     // Submit bets 2 seconds before the end to avoid timing issues with server
-    if (countdown === 2 && pendingBets.length > 0 && user) {
-      console.log("Submitting bets 2 seconds before end of round");
-      submitPendingBets();
+    if (countdown === 2 && user) {
+      const totalBets = Object.values(bets).reduce((sum, amount) => sum + amount, 0);
+      if (totalBets > 0) {
+        console.log("Submitting bets 2 seconds before end of round");
+        submitPendingBets();
+      }
     }
 
     if (countdown <= 0) {
@@ -632,50 +622,52 @@ const stopCountdown = () => {
 // Display game result
 const displayResult = (result) => {
   const resultElement = document.getElementById("result");
-  let totalBet = Object.values(bets).reduce((sum, amount) => sum + amount, 0);
-  let winnings = 0;
 
-  if (result) {
+  // Only show betting results if bets were actually processed by the server
+  if (betsProcessedByServer && Object.values(lastSubmittedBets).some(bet => bet > 0)) {
+    let totalBet = Object.values(lastSubmittedBets).reduce((sum, amount) => sum + amount, 0);
+    let winnings = 0;
+
+    if (result) {
     // Calculate winnings if user placed bet on the winning animal
-    if (bets[result.name] > 0) {
-      winnings = bets[result.name] * result.return;
-      coins += winnings;
-      updateCoinsDisplay();
+      if (lastSubmittedBets[result.name] > 0) {
+        winnings = lastSubmittedBets[result.name] * result.return;
+        coins += winnings;
+        updateCoinsDisplay();
 
-      // Update user object in localStorage with new coin amount
-      if (user) {
-        user.coins = coins;
-        localStorage.setItem("user", JSON.stringify(user));
+        // Update user object in localStorage with new coin amount
+        if (user) {
+          user.coins = coins;
+          localStorage.setItem("user", JSON.stringify(user));
+        }
       }
-    }
 
-    // Display result message
-    if (winnings > 0) {
-      resultElement.textContent = `You win! The outcome was ${result.displayName}. You won ${winnings} coins!`;
-    } else {
-      resultElement.textContent = `The outcome was ${result.displayName}. ${
-        Object.values(bets).some((bet) => bet > 0)
-          ? `You lost ${totalBet} coins.`
-          : "You didn't place any bets."
-      }`;
-    }
+      // Display result message
+      if (winnings > 0) {
+        resultElement.textContent = `You win! The outcome was ${result.displayName}. You won ${winnings} coins!`;
+      } else {
+        resultElement.textContent = `The outcome was ${result.displayName}. You lost ${totalBet} coins.`;
+      }
 
-    // Add result to history
-    addResultToHistory(result, winnings);
+      // Add result to history (passing the submitted bets for calculation)
+      addResultToHistory(result, winnings, lastSubmittedBets);
+    }
+  } else {
+    // No bets were placed or processed
+    if (result) {
+      resultElement.textContent = `The outcome was ${result.displayName}. You didn't place any bets.`;
+    }
   }
-
-  // Reset bets for next game
-  resetBets();
 };
 
 // Add result to history display
-const addResultToHistory = (result, winnings) => {
+const addResultToHistory = (result, winnings, submittedBets = bets) => {
   // Don't add to past results list here - it will be synced from server
   // Just update the history table if it's currently visible
   const tableVisible =
     document.getElementById("history-table").style.display !== "none";
   if (tableVisible) {
-    updateHistoryTable(result, winnings);
+    updateHistoryTable(result, winnings, submittedBets);
   }
 
   // For anonymous users, store game results in session storage
@@ -684,8 +676,8 @@ const addResultToHistory = (result, winnings) => {
       sessionStorage.getItem("currentSessionGames") || "[]"
     );
 
-    // Calculate total bets placed on all animals
-    const totalBets = Object.values(bets).reduce((sum, bet) => sum + bet, 0);
+    // Calculate total bets placed on all animals using the submitted bets
+    const totalBets = Object.values(submittedBets).reduce((sum, bet) => sum + bet, 0);
 
     // Create a game result object similar to what we'd get from the server
     const gameResult = {
@@ -695,7 +687,7 @@ const addResultToHistory = (result, winnings) => {
       end_time: new Date().toISOString(),
       total_bets: totalBets,
       total_winnings: winnings,
-      user_bets: Object.entries(bets)
+      user_bets: Object.entries(submittedBets)
         .filter(([_, amount]) => amount > 0)
         .map(([animal, amount]) => ({
           animal,
@@ -751,7 +743,7 @@ function updatePastResultsList(gameHistory) {
 }
 
 // Update history table
-const updateHistoryTable = (result, winnings) => {
+const updateHistoryTable = (result, winnings, submittedBets = bets) => {
   const tableRow = document
     .getElementById("history-table")
     .querySelector("tbody");
@@ -764,8 +756,8 @@ const updateHistoryTable = (result, winnings) => {
   const winningsCell = newRow.insertCell(2);
   const timeCell = newRow.insertCell(3);
 
-  // Calculate total bets placed on all animals
-  const totalBets = Object.values(bets).reduce((sum, bet) => sum + bet, 0);
+  // Calculate total bets placed on all animals using submitted bets
+  const totalBets = Object.values(submittedBets).reduce((sum, bet) => sum + bet, 0);
 
   // Populate cells
   animalCell.textContent = result.displayName;
@@ -789,9 +781,6 @@ const resetBets = () => {
   document
     .querySelectorAll(".bet-options button")
     .forEach((button) => button.classList.remove("selected"));
-
-  // Clear any pending bets
-  pendingBets = [];
 };
 
 // Toggle visibility of the history table
@@ -1382,12 +1371,16 @@ const createNewGame = async () => {
 
 // Submit all pending bets to the server in one batch
 const submitPendingBets = async () => {
-  // Only proceed if we have pending bets and a logged-in user
-  if (pendingBets.length === 0 || !user) {
+  // Check if user has any bets placed and is logged in
+  const totalBets = Object.values(bets).reduce((sum, amount) => sum + amount, 0);
+  if (totalBets === 0 || !user) {
     return;
   }
 
-  console.log(`Submitting ${pendingBets.length} pending bets in batch`);
+  console.log(`Submitting bets in batch:`, bets);
+
+  // Store a copy of the bets being submitted
+  lastSubmittedBets = { ...bets };
 
   try {
     // Submit bets 1 second before countdown reaches 0 to avoid "betting time ended" error
@@ -1398,7 +1391,7 @@ const submitPendingBets = async () => {
         Authorization: `Bearer ${authToken}`,
       },
       body: JSON.stringify({
-        bets: pendingBets,
+        bets: bets,
       }),
     });
 
@@ -1406,38 +1399,59 @@ const submitPendingBets = async () => {
 
     if (response.ok) {
       console.log("Batch bet submission successful");
-      // All bets are now processed, clear the pending bets
-      pendingBets = [];
+
+      // Mark that bets were successfully processed by server
+      betsProcessedByServer = true;
+
+      // Reset local bets since they're now on the server (but keep lastSubmittedBets for result display)
+      resetBets();
 
       // Update user with the updated coins from the server if available
       if (data.user && data.user.coins !== undefined) {
         user.coins = data.user.coins;
+        coins = data.user.coins;
+        updateCoinsDisplay();
         localStorage.setItem("user", JSON.stringify(user));
       }
     } else {
       console.error("Failed to submit bets in batch:", data.error);
 
-      // If we get "Betting time has ended" error, don't penalize the user
-      if (data.error === "Betting time has ended for this round") {
-        console.log(
-          "Game ended before bets could be processed. Restoring bets."
-        );
+      // If backend rejected the bets, refund the user locally and clear bets
+      // since the server never actually processed them
+      if (data.error === "Betting time has ended for this round" ||
+        data.error.includes("Betting time has ended") ||
+        data.error.includes("round has ended")) {
+        console.log("Bets were not processed by server. Refunding local coins and clearing bets.");
 
-        // Restore coins that were deducted locally
-        pendingBets.forEach((bet) => {
-          coins += bet.amount;
-        });
-        updateCoinsDisplay();
+        // Calculate total bet amount to refund
+        const totalBetAmount = Object.values(bets).reduce((sum, amount) => sum + amount, 0);
 
-        // Update user object in localStorage with restored coin amount
+        // Refund the coins locally since they were never deducted on the server
+        coins += totalBetAmount;
+
+        // Update user coins in memory and localStorage
         if (user) {
           user.coins = coins;
           localStorage.setItem("user", JSON.stringify(user));
         }
-      }
 
-      // Clear pending bets regardless of error
-      pendingBets = [];
+        // Clear all bets since they weren't processed
+        resetBets();
+
+        // Clear the submitted bets tracking as well
+        lastSubmittedBets = {};
+
+        // Mark that bets were NOT processed by server
+        betsProcessedByServer = false;
+
+        // Update the UI
+        updateCoinsDisplay();
+
+        console.log(`Refunded ${totalBetAmount} coins. No results will be shown for unprocessed bets.`);
+      } else {
+        // For other errors, keep bets for now but log the issue
+        console.log("Non-timing related error occurred:", data.error);
+      }
     }
   } catch (error) {
     console.error("Error submitting bets in batch:", error);
