@@ -292,6 +292,7 @@ router.post("/bets/batch", authenticateToken, async (req, res) => {
       .from("users")
       .update({ coins: userCoins - totalBetAmount })
       .eq("id", req.user.id)
+      .order("id", { ascending: true })
       .limit(1);
 
     if (updateError) {
