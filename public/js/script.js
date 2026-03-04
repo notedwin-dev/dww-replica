@@ -3,7 +3,7 @@ function switchToMultiplayer() {
   window.location.href = 'multiplayer.html';
 }
 
-let coins = 10000;
+let coins = 100000;
 let betAmount = 0;
 let selectedAnimal = "";
 let selectedBetAmount = 0;
@@ -19,27 +19,27 @@ let bets = {
 };
 
 const animals = [
-  { name: "turtle", displayName: "🐢乌龟", prob: 19.4, return: 5 },
-  { name: "hedgehog", displayName: "🦔刺猬", prob: 19.4, return: 5 },
-  { name: "raccoon", displayName: "🦝浣熊", prob: 19.4, return: 5 },
-  { name: "elephant", displayName: "🐘小象", prob: 19.4, return: 5 },
-  { name: "cat", displayName: "😼猫咪", prob: 9.7, return: 10 },
-  { name: "fox", displayName: "🦊狐狸", prob: 6.5, return: 15 },
-  { name: "pig", displayName: "🐖猪猪", prob: 3.9, return: 25 },
-  { name: "lion", displayName: "🦁狮子", prob: 2.2, return: 45 },
+  { name: "turtle", displayName: "🐢乌龟", prob: 22.6, return: 5 },
+  { name: "hedgehog", displayName: "🦔刺猬", prob: 0, return: 5 },
+  { name: "raccoon", displayName: "🦝浣熊", prob: 22.6, return: 5 },
+  { name: "elephant", displayName: "🐘小象", prob: 22.6, return: 5 },
+  { name: "cat", displayName: "😼猫咪", prob: 0, return: 10 },
+  { name: "fox", displayName: "🦊狐狸", prob: 12.5, return: 15 },
+  { name: "pig", displayName: "🐖猪猪", prob: 8.0, return: 25 },
+  { name: "lion", displayName: "🦁狮子", prob: 5.2, return: 45 },
 ];
 
 const specials = [
   {
     name: "vegetarian_festival",
     displayName: "🐢🦔🦝🐘",
-    prob: 0.05,
+    prob: 0.7,
     return: 20,
   }, // Sum of turtle, hedgehog, raccoon, elephant returns
   {
     name: "carnivorous_festival",
     displayName: "😼🦊🐖🦁",
-    prob: 0.05,
+    prob: 0.7,
     return: 95,
   }, // Sum of cat, fox, pig, lion returns
 ];
