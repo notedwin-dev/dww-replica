@@ -33,12 +33,14 @@ const specials = [
   {
     name: "vegetarian_festival",
     displayName: "🐢🦔🦝🐘",
+    animals: ["turtle", "hedgehog", "raccoon", "elephant"],
     prob: 0.05,
     return: 20,
   }, // Sum of turtle, hedgehog, raccoon, elephant returns
   {
     name: "carnivorous_festival",
     displayName: "😼🦊🐖🦁",
+    animals: ["cat", "fox", "pig", "lion"],
     prob: 0.05,
     return: 95,
   }, // Sum of cat, fox, pig, lion returns
@@ -177,6 +179,7 @@ function playGame() {
   // }
 
   const result = getRandomAnimal();
+  const specialResults = specials.find((special) => special.name === result.name);
 
   const resultElement = document.getElementById("result");
   const pastResultsList = document.getElementById("past-results-list");
@@ -184,8 +187,16 @@ function playGame() {
   let totalBet = Object.values(bets).reduce((sum, amount) => sum + amount, 0);
   let winnings = 0;
 
-  if (bets[result.name] > 0) {
+  if (bets[result.name] > 0 && !specialResults) {
     winnings = bets[result.name] * result.return;
+    coins += winnings;
+  } else if (specialResults) {
+    for (let animalName of specialResults.animals) {
+      if (bets[animalName] > 0) {
+        const animal = animals.find((a) => a.name === animalName);
+        winnings += bets[animalName] * animal.return;
+      }
+    }
     coins += winnings;
   }
 
